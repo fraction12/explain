@@ -76,6 +76,31 @@ Create a `.explainrc.json` in your target repo:
 npx explain ./path/to/repo
 ```
 
+### CLI options
+
+```bash
+explain <repoPath> \
+  [--config .explainrc.json] \
+  [--output docs/explain] \
+  [--json docs/explain/report.json] \
+  [--html docs/explain] \
+  [--max-graph-nodes 50] \
+  [--base-url https://api.openai.com/v1] \
+  [--model gpt-4o-mini] \
+  [--api-key <key>] \
+  [--force] \
+  [--verbose]
+```
+
+### Output artifacts
+
+- Multi-page HTML site:
+  - `index.html` overview
+  - `files/*.html` per-file pages
+  - `entities/*.html` per-entity pages
+- Versioned JSON report: `report.json` (`schemaVersion: "1.0"`)
+- Incremental cache: `.explain/cache.json` in the analyzed repo
+
 ### GitHub Action
 
 ```yaml
