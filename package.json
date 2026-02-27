@@ -1,0 +1,26 @@
+{
+  "name": "explain",
+  "version": "0.1.0",
+  "description": "Turn any TypeScript/JavaScript codebase into a living, human-readable architecture document.",
+  "main": "dist/index.js",
+  "bin": {
+    "explain": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "dev": "tsx src/cli.ts"
+  },
+  "keywords": ["code-analysis", "documentation", "ast", "typescript", "developer-tools"],
+  "license": "MIT",
+  "dependencies": {
+    "ts-morph": "^24.0.0",
+    "openai": "^4.0.0",
+    "simple-git": "^3.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.0.0",
+    "@types/node": "^22.0.0"
+  }
+}
