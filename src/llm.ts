@@ -115,7 +115,7 @@ export function createLlmClient(config: { apiKey: string; baseUrl: string; model
             name: stripEmojis(group.name),
             description: stripEmojis(group.description),
             files: group.files,
-            slug: stripEmojis(group.name).toLowerCase().trim().replace(/\s+/g, "-"),
+            slug: stripEmojis(group.name).toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "") || "domain",
             kind: group.kind === "foundation" ? "foundation" : "business",
           }));
 
