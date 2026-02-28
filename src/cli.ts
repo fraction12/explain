@@ -272,7 +272,18 @@ async function main(): Promise<void> {
   );
   let projectSummary = previousCache?.projectSummaries?.[summaryHashKey] ?? "";
   if (!projectSummary || args.force) {
-    projectSummary = await llm.generateProjectSummary(summaryContext);
+    try {
+      projectSummary = await llm.generateProjectSummary(summaryContext);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown LLM error";
+      // eslint-disable-next-line no-console
+      console.warn(`[llm] project summary failed, using fallback: ${message}`);
+      errors.push({
+        scope: "llm",
+        message,
+      });
+      projectSummary = "";
+    }
   }
 
   const domainHashKey = createExplanationCacheKey(
@@ -282,7 +293,26 @@ async function main(): Promise<void> {
   );
   let domains: DomainGroup[] = previousCache?.domainClusters?.[domainHashKey] ?? [];
   if (domains.length === 0 || args.force) {
-    domains = await llm.clusterDomains(domainContext);
+    try {
+      domains = await llm.clusterDomains(domainContext);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown LLM error";
+      // eslint-disable-next-line no-console
+      console.warn(`[llm] domain clustering failed, using fallback: ${message}`);
+      errors.push({
+        scope: "llm",
+        message,
+      });
+      domains = [
+        {
+          name: "Project",
+          description: "All files grouped in a single fallback domain.",
+          slug: "project",
+          kind: "business",
+          files: domainContext.map((entry) => entry.filePath),
+        },
+      ];
+    }
   }
 
   const entityHashes = Object.fromEntries(entities.map((entity) => [entity.id, entity.contentHash]));
