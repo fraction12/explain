@@ -18,6 +18,44 @@ import { writeHtmlReport } from "./render/html";
 import { writeJsonReport } from "./render/json";
 import { Entity, ExplainError } from "./types";
 
+interface LlmProgressState {
+  total: number;
+  done: number;
+  ok: number;
+  cached: number;
+  failed: number;
+}
+
+function renderProgressBar(state: LlmProgressState): string {
+  const width = 28;
+  const safeTotal = Math.max(state.total, 1);
+  const ratio = Math.min(state.done / safeTotal, 1);
+  const filled = Math.round(width * ratio);
+  const empty = width - filled;
+  const pct = Math.round(ratio * 100)
+    .toString()
+    .padStart(3, " ");
+
+  return `[${"#".repeat(filled)}${"-".repeat(empty)}] ${pct}% ${state.done}/${state.total} ok:${state.ok} cached:${state.cached} failed:${state.failed}`;
+}
+
+function updateProgress(state: LlmProgressState, forceNewLine = false): void {
+  const line = renderProgressBar(state);
+  if (!output.isTTY) {
+    // Non-interactive output should stay readable in CI logs.
+    if (forceNewLine || state.done === state.total || state.done % 10 === 0) {
+      // eslint-disable-next-line no-console
+      console.log(`[llm] ${line}`);
+    }
+    return;
+  }
+
+  output.write(`\r${line}`);
+  if (forceNewLine || state.done === state.total) {
+    output.write("\n");
+  }
+}
+
 function upsertEnvKey(envPath: string, key: string, value: string): void {
   let content = "";
   if (fs.existsSync(envPath)) {
@@ -141,6 +179,16 @@ async function main(): Promise<void> {
   const explanationCache = { ...(previousCache?.explanations ?? {}) };
 
   const llm = createLlmClient(config.llm, args.verbose);
+  // eslint-disable-next-line no-console
+  console.log(`[explain] generating LLM explanations for ${entities.length} entities...`);
+  const progress: LlmProgressState = {
+    total: entities.length,
+    done: 0,
+    ok: 0,
+    cached: 0,
+    failed: 0,
+  };
+  updateProgress(progress, true);
 
   for (const entity of entities) {
     const shouldExplain = shouldExplainEntity(entity, fileHashes, previousCache, args.force);
@@ -152,6 +200,9 @@ async function main(): Promise<void> {
         status: "cached",
         errorMessage: explanationCache[key].errorMessage,
       };
+      progress.done += 1;
+      progress.cached += 1;
+      updateProgress(progress);
       continue;
     }
 
@@ -166,6 +217,9 @@ async function main(): Promise<void> {
       });
       entity.explanation = { text, status: "ok" };
       explanationCache[key] = { text, status: "ok" };
+      progress.done += 1;
+      progress.ok += 1;
+      updateProgress(progress);
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown LLM error";
       entity.explanation = {
@@ -184,8 +238,12 @@ async function main(): Promise<void> {
         entityId: entity.id,
         filePath: entity.filePath,
       });
+      progress.done += 1;
+      progress.failed += 1;
+      updateProgress(progress);
     }
   }
+  updateProgress(progress, true);
 
   const entityHashes = Object.fromEntries(entities.map((entity) => [entity.id, entity.contentHash]));
   const changelog = buildChangelog(entityHashes, previousCache);
