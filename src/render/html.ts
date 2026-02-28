@@ -73,7 +73,10 @@ function baseHead(title: string, projectName: string, assetPrefix: string, domai
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link id="hljs-theme-light" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/github.min.css" />
+  <link id="hljs-theme-dark" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/github-dark.min.css" disabled />
   <link rel="stylesheet" href="${assetPrefix}styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/lib/common.min.js"></script>
   <script src="${assetPrefix}search-index.js"></script>
 </head>
 <body data-asset-prefix="${assetPrefix}">
@@ -97,6 +100,55 @@ function baseFoot(tocHtml?: string): string {
 function normalizePathname(pathname) {
   return pathname.replace(/\/+$/, "") || "/";
 }
+
+function syncHighlightTheme() {
+  var isLight = document.documentElement.classList.contains("light");
+  var lightTheme = document.getElementById("hljs-theme-light");
+  var darkTheme = document.getElementById("hljs-theme-dark");
+  if (lightTheme) lightTheme.disabled = !isLight;
+  if (darkTheme) darkTheme.disabled = isLight;
+}
+
+function enhanceCodeBlocks(root) {
+  var scope = root || document;
+  if (!(scope instanceof Element || scope instanceof Document)) return;
+  scope.querySelectorAll("pre").forEach(function(pre) {
+    var code = pre.querySelector("code");
+    if (!code) {
+      code = document.createElement("code");
+      code.textContent = pre.textContent || "";
+      pre.textContent = "";
+      pre.appendChild(code);
+    }
+    if (!code.classList.contains("hljs") && window.hljs && typeof window.hljs.highlightElement === "function") {
+      window.hljs.highlightElement(code);
+    }
+
+    if (pre.querySelector(".code-copy-btn")) return;
+    var copyButton = document.createElement("button");
+    copyButton.type = "button";
+    copyButton.className = "code-copy-btn";
+    copyButton.textContent = "Copy";
+    copyButton.setAttribute("aria-label", "Copy code");
+    copyButton.addEventListener("click", function() {
+      var raw = code ? code.textContent || "" : "";
+      if (!raw) return;
+      navigator.clipboard.writeText(raw).then(function() {
+        copyButton.textContent = "Copied!";
+        copyButton.classList.add("copied");
+        setTimeout(function() {
+          copyButton.textContent = "Copy";
+          copyButton.classList.remove("copied");
+        }, 1200);
+      });
+    });
+    pre.appendChild(copyButton);
+  });
+}
+
+window.__explainEnhanceCodeBlocks = enhanceCodeBlocks;
+syncHighlightTheme();
+enhanceCodeBlocks(document);
 
 function updateActiveSidebarLinks(pathname) {
   var currentPath = normalizePathname(pathname || window.location.pathname);
@@ -217,6 +269,9 @@ updateActiveSidebarLinks(window.location.pathname);
 
     main.className = next.className;
     main.innerHTML = next.html;
+    if (window.__explainEnhanceCodeBlocks) {
+      window.__explainEnhanceCodeBlocks(main);
+    }
     document.title = next.title;
 
     if (push) {
@@ -276,8 +331,44 @@ function buildStyles(): string {
 body { margin: 0; font-family: 'Inter', -apple-system, system-ui, sans-serif; font-size: 13px; line-height: 1.5; background: var(--bg); color: var(--text); }
 a { color: var(--link); }
 small, .muted { color: var(--muted); opacity: 0.7; }
-pre { white-space: pre-wrap; background: #0b1220; border-radius: 8px; padding: 12px; border: 1px solid #23314a; }
-pre, code { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+pre {
+  white-space: pre;
+  position: relative;
+  overflow: auto;
+  background: #0d1117;
+  border-radius: 8px;
+  padding: 14px 16px;
+  border: 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), inset 0 0 0 1px rgba(255,255,255,0.05), inset 0 10px 24px rgba(0,0,0,0.28);
+}
+pre, code { font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6; }
+pre code {
+  display: block;
+  background: transparent !important;
+  padding: 0 !important;
+  color: inherit;
+}
+pre code.hljs { background: transparent !important; }
+.code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(229,231,235,0.86);
+  background: rgba(17,24,39,0.66);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+pre:hover .code-copy-btn,
+pre:focus-within .code-copy-btn { opacity: 1; }
+.code-copy-btn:hover { background: rgba(31,41,55,0.9); color: #f3f4f6; }
+.code-copy-btn.copied { color: #d1d5db; }
 h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; margin: 0 0 12px 0; }
 h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; margin: 24px 0 12px 0; color: #f1f5f9; }
 h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; margin: 16px 0 8px 0; }
@@ -471,7 +562,16 @@ html.light .domain-card { background: #ffffff; border-color: #e2e8f0; }
 html.light .domain-card:hover { border-color: #7c7c7c; }
 html.light .entity-block { background: #f8fafc; border-left-color: #cbd5e1; }
 html.light .entity-block .explanation { color: #475569; }
-html.light pre { background: #f1f5f9; border-color: #e2e8f0; color: #334155; }
+html.light pre {
+  background: #f4f5f7;
+  color: #334155;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.75), inset 0 0 0 1px rgba(15,23,42,0.06), inset 0 10px 20px rgba(15,23,42,0.06);
+}
+html.light .code-copy-btn {
+  color: rgba(51,65,85,0.9);
+  background: rgba(241,245,249,0.8);
+}
+html.light .code-copy-btn:hover { color: #1e293b; background: rgba(226,232,240,0.96); }
 html.light .tree-wrap { background: #f8fafc; border-color: #e2e8f0; }
 html.light .graph-sidebar { background: rgba(255,255,255,0.97); border-left-color: #e2e8f0; }
 html.light .graph-sidebar-close { border-color: #e2e8f0; color: #1e293b; }
@@ -642,8 +742,10 @@ document.getElementById('search')?.addEventListener('input', filterRows);
   btn.addEventListener('click', function() {
     var isLight = document.documentElement.classList.toggle('light');
     localStorage.setItem('explain-theme', isLight ? 'light' : 'dark');
+    if (window.syncHighlightTheme) window.syncHighlightTheme();
     btn.innerHTML = isLight ? '🌙' : '☀️';
   });
+  if (window.syncHighlightTheme) window.syncHighlightTheme();
 })();
 `;
 }
@@ -737,10 +839,10 @@ ${baseFoot()}`;
   <h1>${escapeHtml(entity.name)} <span class="kind-badge kind-${entity.kind}">${escapeHtml(entity.kind)}</span></h1>
   <p class="muted">${escapeHtml(entity.filePath)}:${entity.loc.startLine}-${entity.loc.endLine}</p>
   <p><a href="${fileHref}">Open file page</a> • <a href="${escapeHtml(entity.sourceUrl)}" target="_blank" rel="noreferrer">Source</a></p>
-  ${entity.signature ? `<pre>${escapeHtml(entity.signature)}</pre>` : ""}
+  ${entity.signature ? `<pre><code>${escapeHtml(entity.signature)}</code></pre>` : ""}
   <h2>Explanation</h2>
   ${entity.explanation.status !== "ok" && entity.explanation.status !== "cached" ? `<p class="status-${entity.explanation.status}">${escapeHtml(entity.explanation.status)}</p>` : ""}
-  <pre>${escapeHtml(entity.explanation.text)}</pre>
+  <pre><code>${escapeHtml(entity.explanation.text)}</code></pre>
   ${entity.explanation.errorMessage ? `<p class="status-failed">${escapeHtml(entity.explanation.errorMessage)}</p>` : ""}
 </section>
 ${baseFoot()}`;
