@@ -50,7 +50,7 @@ function buildSidebar(projectName: string, assetPrefix: string, domains: DomainG
   return `<aside class="sidebar" id="main-sidebar">
   <div class="sidebar-brand">
     <a href="${assetPrefix}index.html" class="sidebar-brand-link"><span class="sidebar-link-text">${escapeHtml(projectName)}</span></a>
-    <kbd class="search-hint sidebar-brand-search sidebar-link-text">&#8984;K</kbd>
+    <button class="sidebar-theme-toggle" id="theme-toggle" title="Toggle theme" aria-label="Toggle theme">◐</button>
     <button class="sidebar-toggle" id="sidebar-toggle" title="Collapse sidebar" aria-label="Toggle sidebar">&#8249;</button>
   </div>
   <nav class="sidebar-nav">
@@ -385,7 +385,16 @@ function buildStyles(): string {
   --space-3xl: 64px;
 }
 * { box-sizing: border-box; }
-body { margin: 0; font-family: 'Inter', -apple-system, system-ui, sans-serif; font-size: 13px; line-height: 1.5; background: var(--bg); color: var(--text); }
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  padding-left: 220px;
+  transition: padding-left 220ms ease;
+}
 a { color: var(--link); }
 small, .muted { color: var(--muted); opacity: 0.7; }
 pre {
@@ -431,14 +440,25 @@ h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.
 p { margin: 0 0 var(--space-md) 0; max-width: 720px; }
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .table th { text-align: left; color: #94a3b8; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: var(--space-sm) var(--space-md); border-bottom: 2px solid #243244; opacity: 0.7; }
-.table td { padding: var(--space-md); border-bottom: 1px solid rgba(36, 50, 68, 0.6); vertical-align: top; }
-.table tr:hover td { background: rgba(30, 41, 59, 0.4); }
-.table tr:nth-child(even) td { background: rgba(17, 24, 39, 0.3); }
-.table tr:nth-child(even):hover td { background: rgba(30, 41, 59, 0.5); }
+.table td { padding: 16px var(--space-md); border-bottom: 1px solid rgba(36, 50, 68, 0.6); vertical-align: top; }
+.table tbody tr td { background: rgba(17, 24, 39, 0.02); transition: background 0.15s ease; }
+.table tbody tr:nth-child(even) td { background: rgba(17, 24, 39, 0.05); }
+.table tbody tr:hover td { background: rgba(30, 41, 59, 0.08); }
 .table td:last-child { max-width: 480px; }
+.table-api td:nth-child(3) { max-width: 56ch; }
+.table-reference .table-section-row td {
+  padding: 10px var(--space-md);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  background: rgba(100, 116, 139, 0.12);
+  border-bottom-color: rgba(100, 116, 139, 0.25);
+}
 .badge { font-size: 11px; font-weight: 500; opacity: 0.7; }
 .status-failed, .status-ok, .status-cached { color: var(--muted); }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-md); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-md); }
 .card { background: #111827; border-radius: 6px; padding: var(--space-lg); margin-bottom: var(--space-lg); }
 
 /* Sidebar */
@@ -458,13 +478,15 @@ p { margin: 0 0 var(--space-md) 0; max-width: 720px; }
   min-height: 48px; flex-shrink: 0; position: relative;
 }
 .sidebar-brand-link { color: #e5e7eb; text-decoration: none; font-weight: 600; font-size: 14px; white-space: nowrap; flex: 1; min-width: 0; }
-.sidebar-brand-search { flex-shrink: 0; }
+.sidebar-theme-toggle,
 .sidebar-toggle {
   background: transparent; border: none; color: #6b7280;
   cursor: pointer; font-size: 18px; line-height: 1;
   padding: var(--space-xs); border-radius: 4px; flex-shrink: 0;
   transition: color 0.15s, transform 220ms ease;
 }
+.sidebar-theme-toggle { font-size: 14px; }
+.sidebar-theme-toggle:hover,
 .sidebar-toggle:hover { color: #e5e7eb; background: rgba(255,255,255,0.06); }
 .sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); }
 .sidebar-nav { display: flex; flex-direction: column; flex: 1; gap: var(--space-xs); padding-bottom: var(--space-md); }
@@ -487,20 +509,25 @@ p { margin: 0 0 var(--space-md) 0; max-width: 720px; }
 .sidebar-heading-abbr { display: none; }
 .sidebar.collapsed .sidebar-link-text,
 .sidebar.collapsed .sidebar-brand-link,
-.sidebar.collapsed .sidebar-brand-search,
+.sidebar.collapsed .sidebar-theme-toggle,
 .sidebar.collapsed .sidebar-heading-full { opacity: 0; max-width: 0; overflow: hidden; pointer-events: none; }
 .sidebar.collapsed .sidebar-heading-abbr { display: block; }
 .sidebar.collapsed .sidebar-link { padding-left: 0; justify-content: center; }
 .sidebar.collapsed .sidebar-indent { padding-left: 0; }
 .sidebar.collapsed .sidebar-link-icon { width: auto; }
-.content { margin-left: 220px; padding: var(--space-xl) var(--space-xl); max-width: 820px; transition: margin-left 220ms ease; }
-.content-wide { margin-left: 220px; padding: var(--space-xl) var(--space-xl); max-width: none; transition: margin-left 220ms ease; }
-body.sidebar-collapsed .content { margin-left: 60px; }
-body.sidebar-collapsed .content-wide { margin-left: 60px; }
-body.sidebar-collapsed .site-footer { margin-left: 60px; }
+body.sidebar-collapsed { padding-left: 60px; }
+.content, .content-wide { margin: 0 auto; padding: var(--space-xl); max-width: 860px; width: 100%; }
 
 /* Domain cards */
 .domain-card { background: #111827; border-radius: 6px; padding: var(--space-lg); }
+.domain-card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: background 0.16s ease;
+}
+.domain-card-link:hover { background: rgba(148, 163, 184, 0.08); }
 .domain-card h3 { margin: 0 0 var(--space-sm) 0; }
 .domain-card p { margin: 0 0 var(--space-md) 0; color: #9ca3af; font-size: 13px; opacity: 0.7; }
 
@@ -513,10 +540,12 @@ body.sidebar-collapsed .site-footer { margin-left: 60px; }
 .kind-function, .kind-class, .kind-interface, .kind-type, .kind-variable, .kind-enum, .kind-component { }
 
 /* Inline entity on domain pages */
-.entity-block { margin-bottom: var(--space-xl); padding: var(--space-md); background: #0f172a; border-radius: 6px; }
+.entity-block { margin: 0; padding-top: 0; border-top: none; }
+.entity-block + .entity-block { margin-top: var(--space-2xl); padding-top: var(--space-2xl); border-top: 1px solid rgba(100, 116, 139, 0.28); }
 .entity-block h3 { margin: 0 0 var(--space-sm) 0; font-size: 15px; }
+.entity-block .entity-file-path { margin: 0 0 var(--space-md) 0; font-size: 12px; }
 .entity-block .explanation { color: #d1d5db; line-height: 1.6; margin: var(--space-sm) 0; }
-.explanation p { margin: 0 0 var(--space-sm) 0; max-width: 720px; }
+.entity-block .explanation p { margin: 0 0 var(--space-sm) 0; max-width: 72ch; }
 .entity-block .meta { font-size: 11px; color: #6b7280; opacity: 0.6; }
 
 /* Tree */
@@ -552,8 +581,17 @@ body.sidebar-collapsed .site-footer { margin-left: 60px; }
 .graph-sidebar ul { margin: 0; padding-left: var(--space-md); }
 .graph-sidebar li { margin-bottom: var(--space-sm); color: #d1d5db; }
 .foundation-tag { display: inline-block; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-sm); opacity: 0.5; }
-.site-footer { margin-left: 220px; padding: var(--space-xl) var(--space-xl); margin-top: var(--space-2xl); transition: margin-left 220ms ease; }
-.footer-content { display: flex; align-items: center; gap: var(--space-sm); color: #4b5563; font-size: 11px; opacity: 0.6; }
+.site-footer { padding: var(--space-3xl) var(--space-xl) var(--space-xl); margin-top: var(--space-2xl); }
+.footer-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-sm);
+  color: #4b5563;
+  font-size: 11px;
+  opacity: 0.6;
+  text-align: center;
+}
 .footer-content strong { color: #64748b; font-weight: 600; }
 .footer-sep { color: #374151; }
 
@@ -575,9 +613,6 @@ body.sidebar-collapsed .site-footer { margin-left: 60px; }
 .legend-dep-out { border-top: 2px dashed #64748b; }
 .legend-dep-in { border-top: 2px dashed #64748b; }
 .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 4px; }
-
-/* Search hint */
-.search-hint { font-size: 11px; padding: var(--space-xs) var(--space-sm); border-radius: 4px; background: rgba(51, 65, 85, 0.5); color: #6b7280; margin-left: var(--space-sm); font-family: inherit; vertical-align: middle; }
 
 /* Cmd+K search modal */
 .search-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; display: flex; align-items: flex-start; justify-content: center; padding-top: 20vh; }
@@ -605,16 +640,14 @@ body.sidebar-collapsed .site-footer { margin-left: 60px; }
 .back-to-top { position: fixed; bottom: 24px; right: 24px; width: 40px; height: 40px; border-radius: 4px; background: #1e293b; border: 1px solid #243244; color: #94a3b8; font-size: 18px; cursor: pointer; display: none; align-items: center; justify-content: center; z-index: 500; transition: background 0.15s, color 0.15s; }
 .back-to-top:hover { background: #334155; color: #e5e7eb; }
 
-/* Dark/Light theme toggle */
-.theme-toggle { position: fixed; bottom: 24px; right: 76px; width: 40px; height: 40px; border-radius: 4px; background: #1e293b; border: 1px solid #243244; color: #94a3b8; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 500; transition: background 0.15s, color 0.15s; }
-.theme-toggle:hover { background: #334155; color: #e5e7eb; }
-
 /* Light theme */
 html.light { --bg: #f8fafc; --panel: #ffffff; --panel-2: #f1f5f9; --text: #1e293b; --muted: #64748b; --link: #64748b; --accent: #64748b; }
 html.light body { background: var(--bg); color: var(--text); }
 html.light .sidebar { background: #ffffff; }
 html.light .sidebar-brand-link { color: #1e293b; }
+html.light .sidebar-theme-toggle,
 html.light .sidebar-toggle { color: #94a3b8; }
+html.light .sidebar-theme-toggle:hover,
 html.light .sidebar-toggle:hover { color: #1e293b; background: rgba(0,0,0,0.05); }
 html.light .sidebar-link { color: #64748b; }
 html.light .sidebar-link:hover { color: #1e293b; background: rgba(0,0,0,0.04); }
@@ -622,8 +655,8 @@ html.light .sidebar-link.active { color: #1e293b; background: rgba(0,0,0,0.06); 
 html.light .sidebar-heading { color: #94a3b8; }
 html.light .card { background: #ffffff; }
 html.light .domain-card { background: #ffffff; }
-html.light .entity-block { background: #f8fafc; }
 html.light .entity-block .explanation { color: #475569; }
+html.light .entity-block + .entity-block { border-top-color: rgba(148, 163, 184, 0.35); }
 html.light pre {
   background: #f4f5f7;
   color: #334155;
@@ -644,13 +677,18 @@ html.light .search-modal { background: #ffffff; }
 html.light .search-input { color: #1e293b; }
 html.light .search-result-item { color: #1e293b; }
 html.light .search-result-item:hover { background: rgba(124, 124, 124, 0.08); }
-html.light .search-hint { background: #f1f5f9; color: #94a3b8; }
-html.light .back-to-top, html.light .theme-toggle { background: #ffffff; color: #64748b; border-color: #e2e8f0; }
-html.light .back-to-top:hover, html.light .theme-toggle:hover { background: #f1f5f9; color: #1e293b; }
+html.light .back-to-top { background: #ffffff; color: #64748b; border-color: #e2e8f0; }
+html.light .back-to-top:hover { background: #f1f5f9; color: #1e293b; }
 html.light .table th { color: #64748b; border-bottom-color: #e2e8f0; }
 html.light .table td { border-bottom-color: #f1f5f9; }
-html.light .table tr:hover td { background: rgba(241, 245, 249, 0.6); }
-html.light .table tr:nth-child(even) td { background: rgba(248, 250, 252, 0.5); }
+html.light .table tbody tr td { background: rgba(148, 163, 184, 0.02); }
+html.light .table tbody tr:nth-child(even) td { background: rgba(148, 163, 184, 0.05); }
+html.light .table tbody tr:hover td { background: rgba(148, 163, 184, 0.09); }
+html.light .table-reference .table-section-row td {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.16);
+  border-bottom-color: rgba(148, 163, 184, 0.35);
+}
 html.light .breadcrumb-sep { color: #cbd5e1; }
 html.light .breadcrumb span:last-child { color: #64748b; }
 html.light .foundation-tag { background: rgba(148, 163, 184, 0.15); color: #64748b; }
@@ -693,26 +731,25 @@ body.sidebar-overlay-open .sidebar {
 
 /* Tablet (max-width: 1024px) — icon strip */
 @media (max-width: 1024px) {
+  body { padding-left: 60px; }
   .sidebar { width: 60px; }
   .sidebar .sidebar-link-text,
   .sidebar .sidebar-brand-link,
-  .sidebar .sidebar-brand-search,
+  .sidebar .sidebar-theme-toggle,
   .sidebar .sidebar-heading-full { opacity: 0; max-width: 0; overflow: hidden; pointer-events: none; }
   .sidebar .sidebar-heading-abbr { display: block; }
   .sidebar .sidebar-link { justify-content: center; padding-left: 0; }
   .sidebar .sidebar-indent { padding-left: 0; }
   .sidebar .sidebar-toggle { display: none; }
-  .content, .content-wide { margin-left: 60px; padding: var(--space-md); max-width: 100%; }
-  .site-footer { margin-left: 60px; padding: var(--space-md); }
-  body.sidebar-collapsed .content,
-  body.sidebar-collapsed .content-wide,
-  body.sidebar-collapsed .site-footer { margin-left: 60px; }
+  .content, .content-wide { padding: var(--space-md); max-width: 860px; }
+  .site-footer { padding: var(--space-xl) var(--space-md) var(--space-md); }
+  body.sidebar-collapsed { padding-left: 60px; }
 }
 
 /* Small phone (max-width: 480px) — full overlay mode */
 @media (max-width: 480px) {
   /* Body base */
-  body { font-size: 13px; overflow-x: hidden; }
+  body { font-size: 13px; overflow-x: hidden; padding-left: 0; }
 
   /* Hamburger visible */
   .mobile-menu-btn { display: flex; }
@@ -728,7 +765,7 @@ body.sidebar-overlay-open .sidebar {
   /* Restore text in overlay mode */
   .sidebar .sidebar-link-text,
   .sidebar .sidebar-brand-link,
-  .sidebar .sidebar-brand-search,
+  .sidebar .sidebar-theme-toggle,
   .sidebar .sidebar-heading-full { opacity: 1; max-width: 160px; overflow: hidden; pointer-events: auto; }
   .sidebar .sidebar-heading-abbr { display: none; }
   .sidebar .sidebar-link { justify-content: flex-start; padding-left: var(--space-sm); }
@@ -737,13 +774,13 @@ body.sidebar-overlay-open .sidebar {
 
   /* Content full-width, padded for hamburger button */
   .content, .content-wide {
-    margin-left: 0 !important;
+    margin: 0 auto !important;
     padding: 56px 16px 16px 16px;
     max-width: 100%;
     box-sizing: border-box;
   }
   .site-footer {
-    margin-left: 0 !important;
+    margin: 0 !important;
     padding: var(--space-md) 16px;
   }
 
@@ -791,6 +828,12 @@ function buildScript(): string {
   document.querySelectorAll('[data-search]').forEach((row) => {
     const hay = (row.getAttribute('data-search') || '').toLowerCase();
     row.style.display = hay.includes(q) ? '' : 'none';
+  });
+  document.querySelectorAll('[data-domain-header]').forEach((header) => {
+    const domain = header.getAttribute('data-domain-header');
+    if (!domain) return;
+    const visibleRows = Array.from(document.querySelectorAll('[data-domain="' + domain + '"]')).some((row) => row.style.display !== 'none');
+    header.style.display = visibleRows ? '' : 'none';
   });
 }
 document.getElementById('search')?.addEventListener('input', filterRows);
@@ -903,16 +946,12 @@ document.getElementById('search')?.addEventListener('input', filterRows);
 (function() {
   var theme = localStorage.getItem('explain-theme') || 'dark';
   if (theme === 'light') document.documentElement.classList.add('light');
-  var btn = document.createElement('button');
-  btn.className = 'theme-toggle';
-  btn.textContent = 'Theme';
-  btn.title = 'Toggle theme';
-  document.body.appendChild(btn);
+  var btn = document.getElementById('theme-toggle');
+  if (!btn) return;
   btn.addEventListener('click', function() {
     var isLight = document.documentElement.classList.toggle('light');
     localStorage.setItem('explain-theme', isLight ? 'light' : 'dark');
     if (window.syncHighlightTheme) window.syncHighlightTheme();
-    btn.textContent = 'Theme';
   });
   if (window.syncHighlightTheme) window.syncHighlightTheme();
 })();
@@ -1038,7 +1077,7 @@ ${baseFoot()}`;
               .split(/\n\n+/)
               .map(p => `<p>${escapeHtml(p.trim())}</p>`)
               .join("\n");
-            return `<div class="entity-block"><h3>${escapeHtml(entity.name)} <span class="kind-badge kind-${entity.kind}">${escapeHtml(entity.kind)}</span></h3><div class="explanation">${explanationHtml}</div><p class="meta"><a href="${entityHref}">View source</a></p></div>`;
+            return `<div class="entity-block"><h3>${escapeHtml(entity.name)} <span class="kind-badge kind-${entity.kind}">${escapeHtml(entity.kind)}</span></h3><p class="entity-file-path muted">${escapeHtml(entity.filePath)}:${entity.loc.startLine}-${entity.loc.endLine}</p><div class="explanation">${explanationHtml}</div><p class="meta"><a href="${entityHref}">View source</a></p></div>`;
           })
           .join("\n");
 
@@ -1061,14 +1100,26 @@ ${baseFoot()}`;
     .map((domain) => {
       const fileCount = domain.files.length;
       const entityCount = input.entities.filter((e) => domain.files.includes(e.filePath)).length;
-      return `<div class="domain-card" data-search="${escapeHtml(`${cleanDomainName(domain)} ${cleanDomainDescription(domain)}`)}">${domain.kind === "foundation" ? `<span class="foundation-tag">Infrastructure</span>` : ""}<h3>${escapeHtml(cleanDomainName(domain))}</h3><p>${escapeHtml(cleanDomainDescription(domain))}</p><p class="muted">${fileCount} files, ${entityCount} entities</p><p><a href="domains/${escapeHtml(domain.slug)}.html">Open domain</a></p></div>`;
+      return `<a class="domain-card-link" href="domains/${escapeHtml(domain.slug)}.html" data-search="${escapeHtml(`${cleanDomainName(domain)} ${cleanDomainDescription(domain)}`)}"><div class="domain-card">${domain.kind === "foundation" ? `<span class="foundation-tag">Infrastructure</span>` : ""}<h3>${escapeHtml(cleanDomainName(domain))}</h3><p>${escapeHtml(cleanDomainDescription(domain))}</p><p class="muted">${fileCount} files, ${entityCount} entities</p></div></a>`;
     })
     .join("\n");
 
-  const entityRows = input.entities
-    .map((entity) => {
-      const href = `entities/${entityPageMap.get(entity.id)}`;
-      return `<tr data-search="${escapeHtml(`${entity.filePath} ${entity.name} ${entity.kind}`)}"><td><a href="${href}">${escapeHtml(entity.name)}</a></td><td><span class="kind-badge kind-${entity.kind}">${escapeHtml(entity.kind)}</span></td><td>${escapeHtml(entity.filePath)}</td><td class="status-${entity.explanation.status}">${escapeHtml(entity.explanation.status)}</td></tr>`;
+  const entityRows = input.domains
+    .slice()
+    .sort((a, b) => cleanDomainName(a).localeCompare(cleanDomainName(b)))
+    .map((domain) => {
+      const domainEntities = input.entities
+        .filter((entity) => resolveFile(entity.filePath, fileToDomain)?.slug === domain.slug)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      if (domainEntities.length === 0) return "";
+      const headerRow = `<tr class="table-section-row" data-domain-header="${escapeHtml(domain.slug)}"><td colspan="4">${escapeHtml(cleanDomainName(domain))}</td></tr>`;
+      const rows = domainEntities
+        .map((entity) => {
+          const href = `entities/${entityPageMap.get(entity.id)}`;
+          return `<tr data-domain="${escapeHtml(domain.slug)}" data-search="${escapeHtml(`${entity.filePath} ${entity.name} ${entity.kind} ${cleanDomainName(domain)}`)}"><td><a href="${href}">${escapeHtml(entity.name)}</a></td><td><span class="kind-badge kind-${entity.kind}">${escapeHtml(entity.kind)}</span></td><td>${escapeHtml(entity.filePath)}</td><td class="status-${entity.explanation.status}">${escapeHtml(entity.explanation.status)}</td></tr>`;
+        })
+        .join("\n");
+      return `${headerRow}\n${rows}`;
     })
     .join("\n");
 
@@ -1085,7 +1136,7 @@ ${baseFoot()}`;
     .filter((v): v is { method: string; className: string; path: string; file: string; desc: string } => Boolean(v))
     .sort((a, b) => a.path.localeCompare(b.path))
     .map(
-      (row) => `<tr><td><span class="method-badge ${row.className}">${escapeHtml(row.method)}</span></td><td>${escapeHtml(row.path)}</td><td>${escapeHtml(row.desc)}</td><td>${escapeHtml(row.file)}</td></tr>`,
+      (row) => `<tr><td><span class="method-badge ${row.className}">${escapeHtml(row.method)}</span></td><td>${escapeHtml(row.path)}</td><td class="api-description">${escapeHtml(row.desc)}</td><td>${escapeHtml(row.file)}</td></tr>`,
     )
     .join("\n");
 
@@ -1187,7 +1238,7 @@ ${baseFoot()}`;
 <section class="card">
   <h1>Developer Reference</h1>
   <input id="search" class="inline-search-input" type="search" placeholder="Search entities" />
-  <table class="table">
+  <table class="table table-reference">
     <thead><tr><th>Name</th><th>Kind</th><th>File</th><th>Status</th></tr></thead>
     <tbody>${entityRows}</tbody>
   </table>
@@ -1198,7 +1249,7 @@ ${baseFoot()}`;
   const apiHtml = `${baseHead("API Reference", projectName, "", input.domains)}
 <section class="card">
   <h1>API Reference</h1>
-  <table class="table">
+  <table class="table table-api">
     <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>File</th></tr></thead>
     <tbody>${apiRows || '<tr><td colspan="4">No API routes inferred</td></tr>'}</tbody>
   </table>
