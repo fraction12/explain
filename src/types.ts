@@ -96,7 +96,6 @@ export interface GraphData {
 
 export interface DomainGroup {
   name: string;
-  emoji: string;
   description: string;
   slug: string;
   kind: "business" | "foundation";

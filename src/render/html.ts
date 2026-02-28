@@ -23,16 +23,28 @@ function pageTitle(title: string): string {
   return `${title} | Explain`;
 }
 
+function stripEmojis(value: string): string {
+  return value.replace(/\p{Extended_Pictographic}/gu, "").replace(/\s+/g, " ").trim();
+}
+
+function cleanDomainName(domain: DomainGroup): string {
+  return stripEmojis(domain.name);
+}
+
+function cleanDomainDescription(domain: DomainGroup): string {
+  return stripEmojis(domain.description);
+}
+
 function buildSidebar(projectName: string, assetPrefix: string, domains: DomainGroup[]): string {
   const businessDomains = domains.filter((d) => d.kind !== "foundation");
   const foundationDomains = domains.filter((d) => d.kind === "foundation");
 
   const businessLinks = businessDomains
-    .map((domain) => `<a href="${assetPrefix}domains/${domain.slug}.html" class="sidebar-link sidebar-indent"><span class="sidebar-link-icon">${escapeHtml(domain.emoji)}</span><span class="sidebar-link-text">${escapeHtml(domain.name)}</span></a>`)
+    .map((domain) => `<a href="${assetPrefix}domains/${domain.slug}.html" class="sidebar-link sidebar-indent"><span class="sidebar-link-text">${escapeHtml(cleanDomainName(domain))}</span></a>`)
     .join("\n");
 
   const foundationLinks = foundationDomains
-    .map((domain) => `<a href="${assetPrefix}domains/${domain.slug}.html" class="sidebar-link sidebar-indent"><span class="sidebar-link-icon">${escapeHtml(domain.emoji)}</span><span class="sidebar-link-text">${escapeHtml(domain.name)}</span></a>`)
+    .map((domain) => `<a href="${assetPrefix}domains/${domain.slug}.html" class="sidebar-link sidebar-indent"><span class="sidebar-link-text">${escapeHtml(cleanDomainName(domain))}</span></a>`)
     .join("\n");
 
   return `<aside class="sidebar" id="main-sidebar">
@@ -68,7 +80,7 @@ function baseHead(title: string, projectName: string, assetPrefix: string, domai
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(title)} | ${escapeHtml(projectName)}</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><text x='50' y='68' text-anchor='middle' font-family='Arial,sans-serif' font-size='56' fill='white'>E</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -489,7 +501,6 @@ body.sidebar-collapsed .site-footer { margin-left: 60px; }
 
 /* Domain cards */
 .domain-card { background: #111827; border-radius: 6px; padding: var(--space-lg); }
-.domain-card .emoji { font-size: 2em; margin-bottom: var(--space-sm); display: block; }
 .domain-card h3 { margin: 0 0 var(--space-sm) 0; }
 .domain-card p { margin: 0 0 var(--space-md) 0; color: #9ca3af; font-size: 13px; opacity: 0.7; }
 
@@ -894,14 +905,14 @@ document.getElementById('search')?.addEventListener('input', filterRows);
   if (theme === 'light') document.documentElement.classList.add('light');
   var btn = document.createElement('button');
   btn.className = 'theme-toggle';
-  btn.innerHTML = theme === 'light' ? '🌙' : '☀️';
+  btn.textContent = 'Theme';
   btn.title = 'Toggle theme';
   document.body.appendChild(btn);
   btn.addEventListener('click', function() {
     var isLight = document.documentElement.classList.toggle('light');
     localStorage.setItem('explain-theme', isLight ? 'light' : 'dark');
     if (window.syncHighlightTheme) window.syncHighlightTheme();
-    btn.innerHTML = isLight ? '🌙' : '☀️';
+    btn.textContent = 'Theme';
   });
   if (window.syncHighlightTheme) window.syncHighlightTheme();
 })();
@@ -1035,10 +1046,10 @@ ${baseFoot()}`;
       })
       .join("\n");
 
-    const domainHtml = `${baseHead(`${domain.emoji} ${domain.name}`, projectName, "../", input.domains, { breadcrumb: domain.name })}
+    const domainHtml = `${baseHead(cleanDomainName(domain), projectName, "../", input.domains, { breadcrumb: cleanDomainName(domain) })}
 <section class="card">
-  <h1>${escapeHtml(`${domain.emoji} ${domain.name}`)}</h1>
-  <p class="muted">${escapeHtml(domain.description)}</p>
+  <h1>${escapeHtml(cleanDomainName(domain))}</h1>
+  <p class="muted">${escapeHtml(cleanDomainDescription(domain))}</p>
 </section>
 ${fileBlocks}
 ${baseFoot()}`;
@@ -1050,7 +1061,7 @@ ${baseFoot()}`;
     .map((domain) => {
       const fileCount = domain.files.length;
       const entityCount = input.entities.filter((e) => domain.files.includes(e.filePath)).length;
-      return `<div class="domain-card" data-search="${escapeHtml(`${domain.name} ${domain.description}`)}"><span class="emoji">${escapeHtml(domain.emoji)}</span>${domain.kind === "foundation" ? `<span class="foundation-tag">Infrastructure</span>` : ""}<h3>${escapeHtml(domain.name)}</h3><p>${escapeHtml(domain.description)}</p><p class="muted">${fileCount} files, ${entityCount} entities</p><p><a href="domains/${escapeHtml(domain.slug)}.html">Open domain</a></p></div>`;
+      return `<div class="domain-card" data-search="${escapeHtml(`${cleanDomainName(domain)} ${cleanDomainDescription(domain)}`)}">${domain.kind === "foundation" ? `<span class="foundation-tag">Infrastructure</span>` : ""}<h3>${escapeHtml(cleanDomainName(domain))}</h3><p>${escapeHtml(cleanDomainDescription(domain))}</p><p class="muted">${fileCount} files, ${entityCount} entities</p><p><a href="domains/${escapeHtml(domain.slug)}.html">Open domain</a></p></div>`;
     })
     .join("\n");
 
@@ -1098,11 +1109,10 @@ ${baseFoot()}`;
   const treeData = {
     name: projectName,
     children: businessDomains.map((domain) => ({
-      name: `${domain.emoji} ${domain.name}`,
+      name: cleanDomainName(domain),
       slug: domain.slug,
       kind: domain.kind,
-      domainName: domain.name,
-      emoji: domain.emoji,
+      domainName: cleanDomainName(domain),
       children: domain.files
         .filter((filePath, index, arr) => arr.indexOf(filePath) === index)
         .map((filePath) => ({
@@ -1112,11 +1122,10 @@ ${baseFoot()}`;
         })),
     })),
     foundationDomains: foundationDomains.map((domain) => ({
-      name: `${domain.emoji} ${domain.name}`,
+      name: cleanDomainName(domain),
       slug: domain.slug,
       kind: domain.kind,
-      domainName: domain.name,
-      emoji: domain.emoji,
+      domainName: cleanDomainName(domain),
     })),
   };
 
@@ -1159,7 +1168,7 @@ ${baseFoot()}`;
   const searchIndex = [
     ...input.entities.map((e) => ({ type: "entity", name: e.name, kind: e.kind, path: `entities/${entityPageMap.get(e.id)}` })),
     ...input.files.map((f) => ({ type: "file", name: f.path, path: `files/${filePageMap.get(f.path)}` })),
-    ...input.domains.map((d) => ({ type: "domain", name: d.name, path: `domains/${d.slug}.html` })),
+    ...input.domains.map((d) => ({ type: "domain", name: cleanDomainName(d), path: `domains/${d.slug}.html` })),
   ];
   fs.writeFileSync(path.join(input.outDir, "search-index.js"), `window.SEARCH_INDEX = ${JSON.stringify(searchIndex)};\n`, "utf8");
 
@@ -1441,7 +1450,7 @@ function renderSidebar(slug) {
     .filter(([, deps]) => (deps || []).includes(slug))
     .map(([s]) => s);
 
-  sidebarTitle.textContent = (domainNode?.emoji || '') + ' ' + (domainNode?.domainName || slug);
+  sidebarTitle.textContent = domainNode?.domainName || slug;
   sidebarSubtitle.textContent = domainNode?.name || '';
 
   sidebarDepends.innerHTML = '';
