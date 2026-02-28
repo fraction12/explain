@@ -324,8 +324,8 @@ function buildStyles(): string {
   --panel-2: #1f2937;
   --text: #e5e7eb;
   --muted: #9ca3af;
-  --link: #7c7c7c;
-  --accent: #7c7c7c;
+  --link: #64748b;
+  --accent: #64748b;
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
@@ -499,18 +499,18 @@ body.sidebar-collapsed .site-footer { margin-left: 60px; }
   cursor: pointer;
 }
 .graph-sidebar h3 { margin: 0 0 var(--space-xs) 0; }
-.graph-sidebar h4 { margin: var(--space-md) 0 var(--space-sm); color: #93c5fd; font-size: 0.9rem; }
+.graph-sidebar h4 { margin: var(--space-md) 0 var(--space-sm); color: #64748b; font-size: 0.9rem; }
 .graph-sidebar ul { margin: 0; padding-left: var(--space-md); }
 .graph-sidebar li { margin-bottom: var(--space-sm); color: #d1d5db; }
 .foundation-tag { display: inline-block; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-sm); opacity: 0.5; }
 .site-footer { margin-left: 220px; padding: var(--space-xl) var(--space-xl); margin-top: var(--space-2xl); transition: margin-left 220ms ease; }
 .footer-content { display: flex; align-items: center; gap: var(--space-sm); color: #4b5563; font-size: 11px; opacity: 0.6; }
-.footer-content strong { color: #7dd3fc; font-weight: 600; }
+.footer-content strong { color: #64748b; font-weight: 600; }
 .footer-sep { color: #374151; }
 
 /* Breadcrumbs */
 .breadcrumb { margin-bottom: var(--space-md); font-size: 12px; opacity: 0.7; }
-.breadcrumb a { color: #7dd3fc; text-decoration: none; }
+.breadcrumb a { color: #64748b; text-decoration: none; }
 .breadcrumb a:hover { text-decoration: underline; }
 .breadcrumb-sep { color: #4b5563; margin: 0 var(--space-sm); }
 .breadcrumb span:last-child { color: #9ca3af; }
@@ -523,8 +523,8 @@ body.sidebar-collapsed .site-footer { margin-left: 60px; }
 .legend-item { display: flex; align-items: center; gap: var(--space-sm); font-size: 11px; color: #9ca3af; opacity: 0.7; }
 .legend-line { display: inline-block; width: 24px; height: 2px; border-radius: 1px; }
 .legend-tree { background: #475569; }
-.legend-dep-out { border-top: 2px dashed #f59e0b; }
-.legend-dep-in { border-top: 2px dashed #fb923c; }
+.legend-dep-out { border-top: 2px dashed #64748b; }
+.legend-dep-in { border-top: 2px dashed #64748b; }
 .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 4px; }
 
 /* Search hint */
@@ -537,7 +537,7 @@ body.sidebar-collapsed .site-footer { margin-left: 60px; }
 .search-input::placeholder { color: #6b7280; }
 .search-results { max-height: 320px; overflow-y: auto; }
 .search-result-item { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm) var(--space-lg); color: #e5e7eb; text-decoration: none; transition: background 0.1s; font-size: 13px; }
-.search-result-item:hover { background: rgba(125, 211, 252, 0.08); }
+.search-result-item:hover { background: rgba(100, 116, 139, 0.08); }
 .search-type-badge { display: inline-block; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; min-width: 52px; opacity: 0.5; }
 .search-type-entity, .search-type-file, .search-type-domain { }
 
@@ -561,7 +561,7 @@ body.sidebar-collapsed .site-footer { margin-left: 60px; }
 .theme-toggle:hover { background: #334155; color: #e5e7eb; }
 
 /* Light theme */
-html.light { --bg: #f8fafc; --panel: #ffffff; --panel-2: #f1f5f9; --text: #1e293b; --muted: #64748b; --link: #7c7c7c; --accent: #7c7c7c; }
+html.light { --bg: #f8fafc; --panel: #ffffff; --panel-2: #f1f5f9; --text: #1e293b; --muted: #64748b; --link: #64748b; --accent: #64748b; }
 html.light body { background: var(--bg); color: var(--text); }
 html.light .sidebar { background: #ffffff; }
 html.light .sidebar-brand-link { color: #1e293b; }
@@ -590,7 +590,7 @@ html.light .graph-sidebar { background: rgba(255,255,255,0.97); }
 html.light .graph-sidebar-close { color: #1e293b; }
 html.light h2 { color: #1e293b; }
 html.light .footer-content { color: #94a3b8; }
-html.light .footer-content strong { color: #7c7c7c; }
+html.light .footer-content strong { color: #64748b; }
 html.light .search-modal { background: #ffffff; }
 html.light .search-input { color: #1e293b; }
 html.light .search-result-item { color: #1e293b; }
@@ -799,7 +799,7 @@ export function writeHtmlReport(input: HtmlInput): void {
   const entityPageMap = new Map<string, string>();
   for (const entity of input.entities) entityPageMap.set(entity.id, entityPageName(entity));
 
-  const palette = ["#34d399", "#7dd3fc", "#fbbf24", "#f87171", "#a78bfa", "#fb923c", "#f472b6", "#2dd4bf"];
+  const palette = ["#64748b", "#64748b", "#64748b", "#64748b", "#64748b", "#64748b", "#64748b", "#64748b"];
   const domainColorMap = new Map<string, string>();
   input.domains.forEach((d, i) => domainColorMap.set(d.slug, palette[i % palette.length]));
 
@@ -1242,7 +1242,7 @@ markers.append('marker')
   .attr('orient', 'auto')
   .append('path')
   .attr('d', 'M0,-5L10,0L0,5')
-  .attr('fill', '#f59e0b');
+  .attr('fill', '#64748b');
 
 markers.append('marker')
   .attr('id', 'dep-arrow-reverse')
@@ -1254,7 +1254,7 @@ markers.append('marker')
   .attr('orient', 'auto')
   .append('path')
   .attr('d', 'M0,-5L10,0L0,5')
-  .attr('fill', '#fb923c');
+  .attr('fill', '#64748b');
 
 const depLinesGroup = depsLayer.append('g').attr('class', 'dep-lines');
 let activeSlug = null;
@@ -1338,7 +1338,7 @@ function selectDomain(slug) {
     .attr('stroke', '#111827')
     .attr('stroke-width', 1.5);
   d3.selectAll('.business-domain-node[data-slug="' + slug + '"]')
-    .attr('stroke', '#f8fafc')
+    .attr('stroke', '#64748b')
     .attr('stroke-width', 3);
 
   const source = nodePositionBySlug(slug);
@@ -1351,7 +1351,7 @@ function selectDomain(slug) {
     depLinesGroup.append('path')
       .attr('d', pathBetween(source, target))
       .attr('fill', 'none')
-      .attr('stroke', '#f59e0b')
+      .attr('stroke', '#64748b')
       .attr('stroke-width', 2)
       .attr('stroke-dasharray', '6 5')
       .attr('marker-end', 'url(#dep-arrow-forward)');
@@ -1365,7 +1365,7 @@ function selectDomain(slug) {
       depLinesGroup.append('path')
         .attr('d', pathBetween(from, source))
         .attr('fill', 'none')
-        .attr('stroke', '#fb923c')
+        .attr('stroke', '#64748b')
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '2 6')
         .attr('marker-end', 'url(#dep-arrow-reverse)');
