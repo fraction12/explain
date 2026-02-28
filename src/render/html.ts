@@ -80,6 +80,8 @@ function baseHead(title: string, projectName: string, assetPrefix: string, domai
   <script src="${assetPrefix}search-index.js"></script>
 </head>
 <body data-asset-prefix="${assetPrefix}">
+<button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open navigation">&#9776;</button>
+<div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 ${buildSidebar(projectName, assetPrefix, domains)}
 <main class="${contentClass}">
 ${breadcrumb ? `<nav class="breadcrumb"><a href="${assetPrefix}index.html">Overview</a><span class="breadcrumb-sep">›</span><span>${breadcrumb}</span></nav>` : ""}`;
@@ -180,6 +182,42 @@ updateActiveSidebarLinks(window.location.pathname);
     document.body.classList.toggle('sidebar-collapsed', collapsed);
     btn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
     localStorage.setItem(key, collapsed ? '1' : '0');
+  });
+})();
+
+// Mobile hamburger menu toggle
+(function() {
+  var menuBtn = document.getElementById('mobile-menu-btn');
+  var backdrop = document.getElementById('sidebar-backdrop');
+  var sidebar = document.getElementById('main-sidebar');
+  if (!menuBtn || !backdrop || !sidebar) return;
+
+  function openSidebar() {
+    document.body.classList.add('sidebar-overlay-open');
+    menuBtn.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeSidebar() {
+    document.body.classList.remove('sidebar-overlay-open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  menuBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (document.body.classList.contains('sidebar-overlay-open')) {
+      closeSidebar();
+    } else {
+      openSidebar();
+    }
+  });
+
+  backdrop.addEventListener('click', closeSidebar);
+
+  // Close when a sidebar link is clicked (SPA nav or regular)
+  sidebar.querySelectorAll('.sidebar-link').forEach(function(link) {
+    link.addEventListener('click', function() {
+      if (window.innerWidth <= 480) closeSidebar();
+    });
   });
 })();
 
@@ -608,7 +646,42 @@ html.light .foundation-tag { background: rgba(148, 163, 184, 0.15); color: #6474
 html.light .inline-search-input { background: #ffffff; border: 1px solid #e2e8f0; color: #1e293b; }
 
 /* Mobile responsive */
-@media (max-width: 768px) {
+
+/* Hamburger button — hidden on desktop */
+.mobile-menu-btn {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 600;
+  background: #1e293b;
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #e5e7eb;
+  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+}
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 500;
+}
+body.sidebar-overlay-open .sidebar-backdrop { display: block; }
+body.sidebar-overlay-open .sidebar {
+  transform: translateX(0) !important;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+}
+
+/* Tablet (max-width: 1024px) — icon strip */
+@media (max-width: 1024px) {
   .sidebar { width: 60px; }
   .sidebar .sidebar-link-text,
   .sidebar .sidebar-brand-link,
@@ -617,12 +690,84 @@ html.light .inline-search-input { background: #ffffff; border: 1px solid #e2e8f0
   .sidebar .sidebar-heading-abbr { display: block; }
   .sidebar .sidebar-link { justify-content: center; padding-left: 0; }
   .sidebar .sidebar-indent { padding-left: 0; }
-  .sidebar .sidebar-toggle { transform: rotate(180deg); }
+  .sidebar .sidebar-toggle { display: none; }
   .content, .content-wide { margin-left: 60px; padding: var(--space-md); max-width: 100%; }
   .site-footer { margin-left: 60px; padding: var(--space-md); }
+  body.sidebar-collapsed .content,
+  body.sidebar-collapsed .content-wide,
+  body.sidebar-collapsed .site-footer { margin-left: 60px; }
+}
+
+/* Small phone (max-width: 480px) — full overlay mode */
+@media (max-width: 480px) {
+  /* Body base */
+  body { font-size: 13px; overflow-x: hidden; }
+
+  /* Hamburger visible */
+  .mobile-menu-btn { display: flex; }
+
+  /* Sidebar off-screen, slides in as overlay */
+  .sidebar {
+    width: 220px;
+    transform: translateX(-100%);
+    transition: transform 220ms ease;
+    position: fixed;
+    z-index: 550;
+  }
+  /* Restore text in overlay mode */
+  .sidebar .sidebar-link-text,
+  .sidebar .sidebar-brand-link,
+  .sidebar .sidebar-brand-search,
+  .sidebar .sidebar-heading-full { opacity: 1; max-width: 160px; overflow: hidden; pointer-events: auto; }
+  .sidebar .sidebar-heading-abbr { display: none; }
+  .sidebar .sidebar-link { justify-content: flex-start; padding-left: var(--space-sm); }
+  .sidebar .sidebar-indent { padding-left: var(--space-xl); }
+  .sidebar .sidebar-toggle { display: none; }
+
+  /* Content full-width, padded for hamburger button */
+  .content, .content-wide {
+    margin-left: 0 !important;
+    padding: 56px 16px 16px 16px;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .site-footer {
+    margin-left: 0 !important;
+    padding: var(--space-md) 16px;
+  }
+
+  /* Domain card grid — single column */
   .grid { grid-template-columns: 1fr; }
-  .search-modal { width: 95vw; }
-  .graph-legend { gap: var(--space-md); }
+
+  /* Search modal — full width */
+  .search-modal { width: 100vw; max-width: 100vw; border-radius: 0; margin: 0; }
+  .search-modal-overlay { align-items: flex-start; }
+
+  /* Tables — horizontal scroll */
+  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
+
+  /* Code blocks */
+  pre { font-size: 11px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  code { font-size: 11px; }
+
+  /* Breadcrumbs */
+  .breadcrumb { font-size: 11px; white-space: normal; word-break: break-word; }
+
+  /* Entity blocks */
+  .entity-block { padding: var(--space-sm); max-width: 100%; }
+
+  /* Graph legend */
+  .graph-legend { gap: var(--space-sm); flex-wrap: wrap; }
+
+  /* Graph sidebar — stack below on phone */
+  .graph-sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    transform: none !important;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    margin-top: var(--space-md);
+  }
 }
 `;
 }
