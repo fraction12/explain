@@ -99,6 +99,7 @@ export interface DomainGroup {
   emoji: string;
   description: string;
   slug: string;
+  kind: "business" | "foundation";
   files: string[];
 }
 

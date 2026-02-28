@@ -139,6 +139,13 @@ async function main(): Promise<void> {
   const linkMode: "remote" | "local" = repoUrl ? "remote" : "local";
 
   const outputRoot = path.resolve(args.repoPath, config.output);
+  const inferProjectName = (): string => {
+    const fromRepoPath = path.basename(args.repoPath);
+    if (fromRepoPath) return fromRepoPath;
+    const repoUrlForName = repoUrl.replace(/\.git$/, "");
+    const parts = repoUrlForName.split("/").filter(Boolean);
+    return parts[parts.length - 1] ?? "project";
+  };
   const htmlDir = args.htmlDir ? path.resolve(args.htmlDir) : outputRoot;
   const jsonPath = args.jsonPath ? path.resolve(args.jsonPath) : path.join(outputRoot, "report.json");
 
@@ -305,12 +312,14 @@ async function main(): Promise<void> {
 
   writeHtmlReport({
     outDir: htmlDir,
+    projectName: inferProjectName(),
     entities,
     files: fileSummaries,
     routes,
     changelog,
     projectSummary,
     domains,
+    edges,
   });
 
   writeCache(cachePath, fileHashes, entities, explanationCache, {

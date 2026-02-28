@@ -102,7 +102,7 @@ export function createLlmClient(config: { apiKey: string; baseUrl: string; model
           let text = await completeWithRetry(systemPrompt, userPrompt);
           // Strip markdown code fences if present
           text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
-          const parsed = JSON.parse(text) as Array<Omit<DomainGroup, "slug"> & { slug?: string }>;
+          const parsed = JSON.parse(text) as Array<Omit<DomainGroup, "slug" | "kind"> & { slug?: string; kind?: "business" | "foundation" }>;
           if (!Array.isArray(parsed)) {
             throw new Error("Domain clustering response was not an array");
           }
@@ -113,6 +113,7 @@ export function createLlmClient(config: { apiKey: string; baseUrl: string; model
             description: group.description,
             files: group.files,
             slug: group.name.toLowerCase().trim().replace(/\s+/g, "-"),
+            kind: group.kind === "foundation" ? "foundation" : "business",
           }));
         } catch (error) {
           lastError = error;

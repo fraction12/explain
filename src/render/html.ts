@@ -1,16 +1,18 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ChangelogData, DomainGroup, Entity, RouteInfo } from "../types";
+import { ChangelogData, DependencyEdge, DomainGroup, Entity, RouteInfo } from "../types";
 import { escapeHtml, sha256, slugify } from "../utils";
 
 interface HtmlInput {
   outDir: string;
+  projectName: string;
   entities: Entity[];
   files: Array<{ path: string; imports: string[]; exports: string[]; sourceUrl: string }>;
   routes: RouteInfo[];
   changelog: ChangelogData;
   projectSummary: string;
   domains: DomainGroup[];
+  edges: DependencyEdge[];
 }
 
 function ensureDir(dir: string): void {
@@ -137,8 +139,37 @@ pre { white-space: pre-wrap; background: #0b1220; border-radius: 8px; padding: 1
 
 /* Tree */
 .tree-wrap { position: relative; border: 1px solid #243244; border-radius: 10px; background: rgba(11, 18, 32, 0.7); overflow: hidden; }
-.tree-container { width: 100%; min-height: 600px; display: block; }
+.tree-container { width: 100%; min-height: 700px; display: block; }
 .tree-tooltip { position: absolute; background: rgba(17, 24, 39, 0.95); border: 1px solid #243244; border-radius: 8px; padding: 10px 14px; color: #e5e7eb; font-size: 0.85em; pointer-events: none; z-index: 200; display: none; }
+.graph-sidebar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.97);
+  border-left: 1px solid #334155;
+  padding: 16px;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 180ms ease-out;
+  z-index: 150;
+}
+.graph-sidebar.open { transform: translateX(0%); }
+.graph-sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.graph-sidebar-close {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #e5e7eb;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+.graph-sidebar h3 { margin: 0 0 4px 0; }
+.graph-sidebar h4 { margin: 14px 0 6px; color: #93c5fd; font-size: 0.9rem; }
+.graph-sidebar ul { margin: 0; padding-left: 16px; }
+.graph-sidebar li { margin-bottom: 8px; color: #d1d5db; }
 `;
 }
 
@@ -166,6 +197,12 @@ function inferApiPath(filePath: string): string | null {
   return `/${route}`.replace(/\/+/g, "/") || "/";
 }
 
+function inferProjectName(input: HtmlInput): string {
+  if (input.projectName?.trim()) return input.projectName.trim();
+  const fromOutDir = path.basename(path.resolve(input.outDir));
+  return fromOutDir || "project";
+}
+
 export function writeHtmlReport(input: HtmlInput): void {
   const filesDir = path.join(input.outDir, "files");
   const entitiesDir = path.join(input.outDir, "entities");
@@ -186,7 +223,8 @@ export function writeHtmlReport(input: HtmlInput): void {
 
   const palette = ["#34d399", "#7dd3fc", "#fbbf24", "#f87171", "#a78bfa", "#fb923c", "#f472b6", "#2dd4bf"];
   const domainColorMap = new Map<string, string>();
-  input.domains.forEach((d, i) => domainColorMap.set(d.name, palette[i % palette.length]));
+  input.domains.forEach((d, i) => domainColorMap.set(d.slug, palette[i % palette.length]));
+
   const fileToDomain = new Map<string, DomainGroup>();
   for (const domain of input.domains) {
     for (const file of domain.files) fileToDomain.set(file, domain);
@@ -313,12 +351,18 @@ ${baseFoot()}`;
       }</ul></section>
 <section class="card"><h2>Removed</h2><ul>${input.changelog.removedEntities.map((id) => `<li>${escapeHtml(id)}</li>`).join("") || "<li>None</li>"}</ul></section>`;
 
-  const projectName = path.basename(process.cwd());
+  const projectName = inferProjectName(input);
+  const businessDomains = input.domains.filter((domain) => domain.kind !== "foundation");
+  const foundationDomains = input.domains.filter((domain) => domain.kind === "foundation");
+
   const treeData = {
     name: projectName,
-    children: input.domains.map((domain) => ({
+    children: businessDomains.map((domain) => ({
       name: `${domain.emoji} ${domain.name}`,
       slug: domain.slug,
+      kind: domain.kind,
+      domainName: domain.name,
+      emoji: domain.emoji,
       children: domain.files
         .filter((filePath, index, arr) => arr.indexOf(filePath) === index)
         .map((filePath) => ({
@@ -327,9 +371,50 @@ ${baseFoot()}`;
           href: `files/${filePageMap.get(filePath)}`,
         })),
     })),
+    foundationDomains: foundationDomains.map((domain) => ({
+      name: `${domain.emoji} ${domain.name}`,
+      slug: domain.slug,
+      kind: domain.kind,
+      domainName: domain.name,
+      emoji: domain.emoji,
+    })),
   };
 
-  fs.writeFileSync(path.join(input.outDir, "tree-data.js"), `window.TREE_DATA = ${JSON.stringify(treeData, null, 2)};\n`, "utf8");
+  const domainDepsMap = new Map<string, Set<string>>();
+  const domainImportDetailsMap = new Map<string, Record<string, Array<{ from: string; to: string }>>>();
+
+  for (const edge of input.edges) {
+    const fromDomain = fileToDomain.get(edge.from);
+    const toDomain = fileToDomain.get(edge.to);
+    if (!fromDomain || !toDomain) continue;
+    if (fromDomain.slug === toDomain.slug) continue;
+    if (fromDomain.kind === "foundation") continue;
+    if (toDomain.kind === "foundation") continue;
+
+    if (!domainDepsMap.has(fromDomain.slug)) domainDepsMap.set(fromDomain.slug, new Set<string>());
+    domainDepsMap.get(fromDomain.slug)?.add(toDomain.slug);
+
+    if (!domainImportDetailsMap.has(fromDomain.slug)) domainImportDetailsMap.set(fromDomain.slug, {});
+    const fromDetails = domainImportDetailsMap.get(fromDomain.slug) as Record<string, Array<{ from: string; to: string }>>;
+    if (!fromDetails[toDomain.slug]) fromDetails[toDomain.slug] = [];
+    fromDetails[toDomain.slug].push({ from: edge.from, to: edge.to });
+  }
+
+  const domainDependencies = Object.fromEntries(
+    businessDomains.map((domain) => [domain.slug, Array.from(domainDepsMap.get(domain.slug) ?? [])]),
+  );
+
+  const domainImportDetails = Object.fromEntries(
+    businessDomains.map((domain) => [domain.slug, (domainImportDetailsMap.get(domain.slug) ?? {}) as Record<string, Array<{ from: string; to: string }>>]),
+  );
+
+  const graphData = {
+    tree: treeData,
+    domainDependencies,
+    domainImportDetails,
+  };
+
+  fs.writeFileSync(path.join(input.outDir, "tree-data.js"), `window.TREE_DATA = ${JSON.stringify(graphData, null, 2)};\n`, "utf8");
 
   const now = new Date().toISOString();
 
@@ -374,36 +459,57 @@ ${baseFoot()}`;
   <h1>Architecture Map</h1>
   <p class="muted">Project, domains, and key capabilities by file.</p>
 </section>
-<div class="tree-wrap">
+<div class="tree-wrap" id="graph-wrap">
   <div id="tooltip" class="tree-tooltip"></div>
+  <aside id="domain-sidebar" class="graph-sidebar">
+    <div class="graph-sidebar-header">
+      <h3 id="sidebar-title">Domain</h3>
+      <button id="sidebar-close" class="graph-sidebar-close" aria-label="Close">×</button>
+    </div>
+    <p id="sidebar-subtitle" class="muted"></p>
+    <h4>Depends on</h4>
+    <ul id="sidebar-depends"></ul>
+    <h4>Depended on by</h4>
+    <ul id="sidebar-reverse"></ul>
+  </aside>
   <svg id="tree" class="tree-container"></svg>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="tree-data.js"></script>
 <script>
-const data = window.TREE_DATA;
-const domainColors = new Map(${JSON.stringify(input.domains.map((domain) => [domain.slug, domainColorMap.get(domain.name) ?? "#9ca3af"]))});
+const graphData = window.TREE_DATA;
+const data = graphData.tree;
+const domainDependencies = graphData.domainDependencies || {};
+const domainImportDetails = graphData.domainImportDetails || {};
+const domainColors = new Map(${JSON.stringify(input.domains.map((domain) => [domain.slug, domainColorMap.get(domain.slug) ?? "#9ca3af"]))});
+
 const root = d3.hierarchy(data);
 const leafCount = root.leaves().length;
 const maxDepth = root.height;
-const width = Math.max(900, (maxDepth + 1) * 250 + 200);
-const height = Math.max(600, leafCount * 24 + 140);
-const margin = { top: 40, right: 120, bottom: 40, left: 120 };
+const width = Math.max(980, (maxDepth + 1) * 260 + 240);
+const height = Math.max(720, leafCount * 24 + 260);
+const margin = { top: 40, right: 160, bottom: 130, left: 120 };
 
 const svg = d3.select('#tree')
   .attr('viewBox', [0, 0, width, height])
   .attr('preserveAspectRatio', 'xMidYMid meet');
 
-const zoomGroup = svg.append('g');
-const content = zoomGroup.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+const zoomLayer = svg.append('g');
+const content = zoomLayer.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+const depsLayer = content.append('g').attr('class', 'deps-layer');
+const treeLayer = content.append('g').attr('class', 'tree-layer');
+const foundationLayer = content.append('g').attr('class', 'foundation-layer');
 
-svg.call(d3.zoom().scaleExtent([0.4, 2.5]).on('zoom', (event) => zoomGroup.attr('transform', event.transform)));
+const zoomBehavior = d3.zoom().scaleExtent([0.4, 2.5]).on('zoom', (event) => zoomLayer.attr('transform', event.transform));
+svg.call(zoomBehavior);
 
-const tree = d3.tree().size([height - margin.top - margin.bottom, width - margin.left - margin.right]);
+const treeHeight = height - margin.top - margin.bottom - 120;
+const treeWidth = width - margin.left - margin.right;
+const tree = d3.tree().size([treeHeight, treeWidth]);
 tree(root);
 
 const link = d3.linkHorizontal().x(d => d.y).y(d => d.x);
-content.append('g')
+treeLayer.append('g')
   .selectAll('path')
   .data(root.links())
   .join('path')
@@ -413,14 +519,27 @@ content.append('g')
   .attr('d', link);
 
 const tooltip = document.getElementById('tooltip');
-const node = content.append('g')
+const sidebar = document.getElementById('domain-sidebar');
+const sidebarTitle = document.getElementById('sidebar-title');
+const sidebarSubtitle = document.getElementById('sidebar-subtitle');
+const sidebarDepends = document.getElementById('sidebar-depends');
+const sidebarReverse = document.getElementById('sidebar-reverse');
+const sidebarClose = document.getElementById('sidebar-close');
+
+const domainNodeBySlug = new Map();
+
+const node = treeLayer.append('g')
   .selectAll('g')
   .data(root.descendants())
   .join('g')
   .attr('transform', d => 'translate(' + d.y + ',' + d.x + ')')
   .style('cursor', d => d.depth > 0 ? 'pointer' : 'default')
-  .on('click', (_, d) => {
-    if (d.depth === 1 && d.data.slug) window.location.href = 'domains/' + d.data.slug + '.html';
+  .on('click', (event, d) => {
+    event.stopPropagation();
+    if (d.depth === 1 && d.data.slug) {
+      selectDomain(d.data.slug);
+      return;
+    }
     if (d.depth === 2 && d.data.href) window.location.href = d.data.href;
   })
   .on('mouseover', (event, d) => {
@@ -434,6 +553,10 @@ const node = content.append('g')
   })
   .on('mouseout', () => { tooltip.style.display = 'none'; });
 
+node.each((d, i, n) => {
+  if (d.depth === 1 && d.data.slug) domainNodeBySlug.set(d.data.slug, d);
+});
+
 node.append('circle')
   .attr('r', d => d.depth === 0 ? 12 : d.depth === 1 ? 10 : 5)
   .attr('fill', d => {
@@ -442,7 +565,9 @@ node.append('circle')
     return domainColors.get(d.parent?.data?.slug) || '#9ca3af';
   })
   .attr('stroke', '#111827')
-  .attr('stroke-width', 1.5);
+  .attr('stroke-width', 1.5)
+  .attr('class', d => d.depth === 1 ? 'business-domain-node' : 'tree-node-circle')
+  .attr('data-slug', d => d.data?.slug || '');
 
 node.append('text')
   .attr('x', d => d.depth === 0 ? -16 : 10)
@@ -452,11 +577,206 @@ node.append('text')
   .style('font-size', d => d.depth === 1 ? '13px' : d.depth === 2 ? '11px' : '14px')
   .text(d => d.data.name);
 
+const foundationDomains = data.foundationDomains || [];
+const foundationY = treeHeight + 70;
+const foundationBarHeight = 70;
+foundationLayer.append('rect')
+  .attr('x', -20)
+  .attr('y', foundationY - foundationBarHeight / 2)
+  .attr('width', treeWidth + 40)
+  .attr('height', foundationBarHeight)
+  .attr('rx', 12)
+  .attr('fill', 'rgba(30,41,59,0.7)')
+  .attr('stroke', '#475569')
+  .attr('stroke-width', 1.2);
+
+foundationLayer.append('text')
+  .attr('x', 0)
+  .attr('y', foundationY - foundationBarHeight / 2 - 10)
+  .attr('fill', '#cbd5e1')
+  .style('font-size', '12px')
+  .text('Foundation & Shared Services');
+
+const foundationSpacing = foundationDomains.length > 0 ? treeWidth / (foundationDomains.length + 1) : treeWidth;
+const foundationNodes = foundationLayer.append('g')
+  .selectAll('g')
+  .data(foundationDomains)
+  .join('g')
+  .attr('transform', (_, i) => 'translate(' + ((i + 1) * foundationSpacing) + ',' + foundationY + ')')
+  .style('cursor', 'pointer')
+  .on('click', (event, d) => {
+    event.stopPropagation();
+    window.location.href = 'domains/' + d.slug + '.html';
+  });
+
+foundationNodes.append('circle')
+  .attr('r', 10)
+  .attr('fill', d => domainColors.get(d.slug) || '#94a3b8')
+  .attr('stroke', '#0f172a')
+  .attr('stroke-width', 1.5);
+
+foundationNodes.append('text')
+  .attr('x', 14)
+  .attr('y', 1)
+  .attr('dominant-baseline', 'middle')
+  .style('font-size', '12px')
+  .style('fill', '#e2e8f0')
+  .text(d => d.name);
+
+const markers = depsLayer.append('defs');
+markers.append('marker')
+  .attr('id', 'dep-arrow-forward')
+  .attr('viewBox', '0 -5 10 10')
+  .attr('refX', 9)
+  .attr('refY', 0)
+  .attr('markerWidth', 6)
+  .attr('markerHeight', 6)
+  .attr('orient', 'auto')
+  .append('path')
+  .attr('d', 'M0,-5L10,0L0,5')
+  .attr('fill', '#f59e0b');
+
+markers.append('marker')
+  .attr('id', 'dep-arrow-reverse')
+  .attr('viewBox', '0 -5 10 10')
+  .attr('refX', 9)
+  .attr('refY', 0)
+  .attr('markerWidth', 6)
+  .attr('markerHeight', 6)
+  .attr('orient', 'auto')
+  .append('path')
+  .attr('d', 'M0,-5L10,0L0,5')
+  .attr('fill', '#fb923c');
+
+const depLinesGroup = depsLayer.append('g').attr('class', 'dep-lines');
+let activeSlug = null;
+
+function nodePositionBySlug(slug) {
+  const domainNode = domainNodeBySlug.get(slug);
+  if (!domainNode) return null;
+  return { x: domainNode.y, y: domainNode.x };
+}
+
+function pathBetween(from, to) {
+  const dx = to.x - from.x;
+  const c1x = from.x + Math.max(40, dx * 0.45);
+  const c2x = to.x - Math.max(40, dx * 0.45);
+  return 'M' + from.x + ',' + from.y + ' C' + c1x + ',' + from.y + ' ' + c2x + ',' + to.y + ' ' + to.x + ',' + to.y;
+}
+
+function resetSelection() {
+  activeSlug = null;
+  depLinesGroup.selectAll('*').remove();
+  d3.selectAll('.business-domain-node')
+    .attr('stroke', '#111827')
+    .attr('stroke-width', 1.5);
+  sidebar.classList.remove('open');
+}
+
+function listItemText(pair) {
+  const [targetSlug, details] = pair;
+  const targetNode = (root.descendants().find(d => d.depth === 1 && d.data.slug === targetSlug) || {}).data;
+  const targetName = targetNode && targetNode.name ? targetNode.name : targetSlug;
+  const samples = (details || []).slice(0, 5).map(d => d.from + ' → ' + d.to).join('; ');
+  return targetName + (samples ? ' — imports: ' + samples : '');
+}
+
+function renderSidebar(slug) {
+  const domainNode = (root.descendants().find(d => d.depth === 1 && d.data.slug === slug) || {}).data;
+  const dependsOn = domainDependencies[slug] || [];
+  const dependedOnBy = Object.entries(domainDependencies)
+    .filter(([, deps]) => (deps || []).includes(slug))
+    .map(([s]) => s);
+
+  sidebarTitle.textContent = (domainNode?.emoji || '') + ' ' + (domainNode?.domainName || slug);
+  sidebarSubtitle.textContent = domainNode?.name || '';
+
+  sidebarDepends.innerHTML = '';
+  if (dependsOn.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = 'None';
+    sidebarDepends.appendChild(li);
+  } else {
+    dependsOn.forEach((targetSlug) => {
+      const li = document.createElement('li');
+      const details = ((domainImportDetails[slug] || {})[targetSlug] || []);
+      li.textContent = listItemText([targetSlug, details]);
+      sidebarDepends.appendChild(li);
+    });
+  }
+
+  sidebarReverse.innerHTML = '';
+  if (dependedOnBy.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = 'None';
+    sidebarReverse.appendChild(li);
+  } else {
+    dependedOnBy.forEach((sourceSlug) => {
+      const li = document.createElement('li');
+      const details = ((domainImportDetails[sourceSlug] || {})[slug] || []);
+      li.textContent = listItemText([sourceSlug, details]);
+      sidebarReverse.appendChild(li);
+    });
+  }
+
+  sidebar.classList.add('open');
+}
+
+function selectDomain(slug) {
+  activeSlug = slug;
+  depLinesGroup.selectAll('*').remove();
+
+  d3.selectAll('.business-domain-node')
+    .attr('stroke', '#111827')
+    .attr('stroke-width', 1.5);
+  d3.selectAll('.business-domain-node[data-slug="' + slug + '"]')
+    .attr('stroke', '#f8fafc')
+    .attr('stroke-width', 3);
+
+  const source = nodePositionBySlug(slug);
+  if (!source) return;
+
+  const outgoing = domainDependencies[slug] || [];
+  outgoing.forEach((targetSlug) => {
+    const target = nodePositionBySlug(targetSlug);
+    if (!target) return;
+    depLinesGroup.append('path')
+      .attr('d', pathBetween(source, target))
+      .attr('fill', 'none')
+      .attr('stroke', '#f59e0b')
+      .attr('stroke-width', 2)
+      .attr('stroke-dasharray', '6 5')
+      .attr('marker-end', 'url(#dep-arrow-forward)');
+  });
+
+  Object.entries(domainDependencies)
+    .filter(([, deps]) => (deps || []).includes(slug))
+    .forEach(([otherSlug]) => {
+      const from = nodePositionBySlug(otherSlug);
+      if (!from) return;
+      depLinesGroup.append('path')
+        .attr('d', pathBetween(from, source))
+        .attr('fill', 'none')
+        .attr('stroke', '#fb923c')
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '2 6')
+        .attr('marker-end', 'url(#dep-arrow-reverse)');
+    });
+
+  renderSidebar(slug);
+}
+
+svg.on('click', () => resetSelection());
+sidebarClose.addEventListener('click', (event) => {
+  event.stopPropagation();
+  resetSelection();
+});
+
 const bounds = content.node().getBBox();
-const scale = Math.min(1.1, Math.min((width - 40) / (bounds.width + 40), (height - 40) / (bounds.height + 40)));
+const scale = Math.min(1.08, Math.min((width - 40) / (bounds.width + 40), (height - 40) / (bounds.height + 40)));
 const tx = (width - (bounds.x + bounds.width / 2) * scale);
 const ty = (height - (bounds.y + bounds.height / 2) * scale);
-svg.call(d3.zoom().transform, d3.zoomIdentity.translate(tx / 2, ty / 2).scale(scale));
+svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx / 2, ty / 2).scale(scale));
 </script>
 ${baseFoot()}`;
 
