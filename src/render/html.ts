@@ -23,13 +23,13 @@ function pageTitle(title: string): string {
   return `${title} | Explain`;
 }
 
-function buildSidebar(assetPrefix: string, domains: DomainGroup[]): string {
+function buildSidebar(projectName: string, assetPrefix: string, domains: DomainGroup[]): string {
   const domainLinks = domains
     .map((domain) => `<a href="${assetPrefix}domains/${domain.slug}.html" class="sidebar-link sidebar-indent">${escapeHtml(domain.emoji)} ${escapeHtml(domain.name)}</a>`)
     .join("\n");
 
   return `<aside class="sidebar">
-  <div class="sidebar-brand"><a href="${assetPrefix}index.html">Explain</a></div>
+  <div class="sidebar-brand"><a href="${assetPrefix}index.html">${escapeHtml(projectName)}</a></div>
   <nav class="sidebar-nav">
     <a href="${assetPrefix}index.html" class="sidebar-link">Overview</a>
     <div class="sidebar-section">
@@ -47,17 +47,17 @@ function buildSidebar(assetPrefix: string, domains: DomainGroup[]): string {
 </aside>`;
 }
 
-function baseHead(title: string, assetPrefix: string, domains: DomainGroup[], contentClass = "content"): string {
+function baseHead(title: string, projectName: string, assetPrefix: string, domains: DomainGroup[], contentClass = "content"): string {
   return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${escapeHtml(pageTitle(title))}</title>
+  <title>${escapeHtml(title)} | ${escapeHtml(projectName)}</title>
   <link rel="stylesheet" href="${assetPrefix}styles.css" />
 </head>
 <body>
-${buildSidebar(assetPrefix, domains)}
+${buildSidebar(projectName, assetPrefix, domains)}
 <main class="${contentClass}">`;
 }
 
@@ -215,6 +215,8 @@ export function writeHtmlReport(input: HtmlInput): void {
   fs.writeFileSync(path.join(input.outDir, "styles.css"), buildStyles(), "utf8");
   fs.writeFileSync(path.join(input.outDir, "app.js"), buildScript(), "utf8");
 
+  const projectName = inferProjectName(input);
+
   const filePageMap = new Map<string, string>();
   for (const file of input.files) filePageMap.set(file.path, filePageName(file.path));
 
@@ -227,7 +229,21 @@ export function writeHtmlReport(input: HtmlInput): void {
 
   const fileToDomain = new Map<string, DomainGroup>();
   for (const domain of input.domains) {
-    for (const file of domain.files) fileToDomain.set(file, domain);
+    for (const file of domain.files) {
+      fileToDomain.set(file, domain);
+      const ext = path.extname(file);
+      if (ext) fileToDomain.set(file.slice(0, -ext.length), domain);
+    }
+  }
+
+  function resolveFile(filePath: string, map: Map<string, DomainGroup>): DomainGroup | undefined {
+    const direct = map.get(filePath);
+    if (direct) return direct;
+    for (const ext of [".ts", ".tsx", ".js", ".jsx"]) {
+      const resolved = map.get(filePath + ext);
+      if (resolved) return resolved;
+    }
+    return undefined;
   }
 
   for (const file of input.files) {
@@ -239,7 +255,7 @@ export function writeHtmlReport(input: HtmlInput): void {
       })
       .join("\n");
 
-    const html = `${baseHead(`File: ${file.path}`, "../", input.domains)}
+    const html = `${baseHead(`File: ${file.path}`, projectName, "../", input.domains)}
 <section class="card">
   <h1>${escapeHtml(file.path)}</h1>
   <p><a href="${escapeHtml(file.sourceUrl)}" target="_blank" rel="noreferrer">View source</a></p>
@@ -255,7 +271,7 @@ ${baseFoot()}`;
 
   for (const entity of input.entities) {
     const fileHref = `../files/${filePageMap.get(entity.filePath)}`;
-    const html = `${baseHead(`Entity: ${entity.name}`, "../", input.domains)}
+    const html = `${baseHead(`Entity: ${entity.name}`, projectName, "../", input.domains)}
 <section class="card">
   <h1>${escapeHtml(entity.name)} <span class="badge">${escapeHtml(entity.kind)}</span></h1>
   <p class="muted">${escapeHtml(entity.filePath)}:${entity.loc.startLine}-${entity.loc.endLine}</p>
@@ -294,7 +310,7 @@ ${baseFoot()}`;
       })
       .join("\n");
 
-    const domainHtml = `${baseHead(`${domain.emoji} ${domain.name}`, "../", input.domains)}
+    const domainHtml = `${baseHead(`${domain.emoji} ${domain.name}`, projectName, "../", input.domains)}
 <section class="card">
   <h1>${escapeHtml(`${domain.emoji} ${domain.name}`)}</h1>
   <p class="muted">${escapeHtml(domain.description)}</p>
@@ -351,7 +367,6 @@ ${baseFoot()}`;
       }</ul></section>
 <section class="card"><h2>Removed</h2><ul>${input.changelog.removedEntities.map((id) => `<li>${escapeHtml(id)}</li>`).join("") || "<li>None</li>"}</ul></section>`;
 
-  const projectName = inferProjectName(input);
   const businessDomains = input.domains.filter((domain) => domain.kind !== "foundation");
   const foundationDomains = input.domains.filter((domain) => domain.kind === "foundation");
 
@@ -384,8 +399,8 @@ ${baseFoot()}`;
   const domainImportDetailsMap = new Map<string, Record<string, Array<{ from: string; to: string }>>>();
 
   for (const edge of input.edges) {
-    const fromDomain = fileToDomain.get(edge.from);
-    const toDomain = fileToDomain.get(edge.to);
+    const fromDomain = resolveFile(edge.from, fileToDomain);
+    const toDomain = resolveFile(edge.to, fileToDomain);
     if (!fromDomain || !toDomain) continue;
     if (fromDomain.slug === toDomain.slug) continue;
     if (fromDomain.kind === "foundation") continue;
@@ -418,7 +433,7 @@ ${baseFoot()}`;
 
   const now = new Date().toISOString();
 
-  const indexHtml = `${baseHead("Overview", "", input.domains)}
+  const indexHtml = `${baseHead("Overview", projectName, "", input.domains)}
 <section class="card">
   <h1>Architecture Overview</h1>
   <p>${escapeHtml(input.projectSummary)}</p>
@@ -432,7 +447,7 @@ ${baseFoot()}`;
 <script src="./app.js"></script>
 ${baseFoot()}`;
 
-  const referenceHtml = `${baseHead("Developer Reference", "", input.domains)}
+  const referenceHtml = `${baseHead("Developer Reference", projectName, "", input.domains)}
 <section class="card">
   <h1>Developer Reference</h1>
   <input id="search" type="search" placeholder="Search entities" style="width:100%;padding:10px;border-radius:8px;border:1px solid #243244;background:#0b1220;color:#e5e7eb;margin-bottom:12px" />
@@ -444,7 +459,7 @@ ${baseFoot()}`;
 <script src="./app.js"></script>
 ${baseFoot()}`;
 
-  const apiHtml = `${baseHead("API Reference", "", input.domains)}
+  const apiHtml = `${baseHead("API Reference", projectName, "", input.domains)}
 <section class="card">
   <h1>API Reference</h1>
   <table class="table">
@@ -454,7 +469,7 @@ ${baseFoot()}`;
 </section>
 ${baseFoot()}`;
 
-  const graphHtml = `${baseHead("Architecture Map", "", input.domains, "content-wide")}
+  const graphHtml = `${baseHead("Architecture Map", projectName, "", input.domains, "content-wide")}
 <section class="card">
   <h1>Architecture Map</h1>
   <p class="muted">Project, domains, and key capabilities by file.</p>
@@ -486,9 +501,9 @@ const domainColors = new Map(${JSON.stringify(input.domains.map((domain) => [dom
 const root = d3.hierarchy(data);
 const leafCount = root.leaves().length;
 const maxDepth = root.height;
-const width = Math.max(980, (maxDepth + 1) * 260 + 240);
-const height = Math.max(720, leafCount * 24 + 260);
-const margin = { top: 40, right: 160, bottom: 130, left: 120 };
+const width = Math.max(1400, (maxDepth + 1) * 320 + 420);
+const height = Math.max(820, leafCount * 32 + 340);
+const margin = { top: 60, right: 320, bottom: 170, left: 110 };
 
 const svg = d3.select('#tree')
   .attr('viewBox', [0, 0, width, height])
@@ -505,7 +520,7 @@ svg.call(zoomBehavior);
 
 const treeHeight = height - margin.top - margin.bottom - 120;
 const treeWidth = width - margin.left - margin.right;
-const tree = d3.tree().size([treeHeight, treeWidth]);
+const tree = d3.tree().nodeSize([42, 300]);
 tree(root);
 
 const link = d3.linkHorizontal().x(d => d.y).y(d => d.x);
@@ -575,7 +590,12 @@ node.append('text')
   .attr('dominant-baseline', 'middle')
   .style('fill', '#ffffff')
   .style('font-size', d => d.depth === 1 ? '13px' : d.depth === 2 ? '11px' : '14px')
-  .text(d => d.data.name);
+  .text(d => {
+    const label = d.data.name || "";
+    return d.depth === 1 && label.length > 25 ? label.slice(0, 22) + "..." : label;
+  })
+  .append("title")
+  .text(d => d.data.name || "");
 
 const foundationDomains = data.foundationDomains || [];
 const foundationY = treeHeight + 70;
@@ -597,16 +617,16 @@ foundationLayer.append('text')
   .style('font-size', '12px')
   .text('Foundation & Shared Services');
 
-const foundationSpacing = foundationDomains.length > 0 ? treeWidth / (foundationDomains.length + 1) : treeWidth;
+const foundationSpacing = foundationDomains.length > 0 ? (treeWidth - 120) / (foundationDomains.length + 1) : treeWidth;
 const foundationNodes = foundationLayer.append('g')
   .selectAll('g')
   .data(foundationDomains)
   .join('g')
-  .attr('transform', (_, i) => 'translate(' + ((i + 1) * foundationSpacing) + ',' + foundationY + ')')
+  .attr('transform', (_, i) => 'translate(' + (60 + (i + 1) * foundationSpacing) + ',' + foundationY + ')')
   .style('cursor', 'pointer')
   .on('click', (event, d) => {
     event.stopPropagation();
-    window.location.href = 'domains/' + d.slug + '.html';
+    selectDomain(d.slug);
   });
 
 foundationNodes.append('circle')
@@ -621,7 +641,7 @@ foundationNodes.append('text')
   .attr('dominant-baseline', 'middle')
   .style('font-size', '12px')
   .style('fill', '#e2e8f0')
-  .text(d => d.name);
+  .text(d => d.domainName || d.name);
 
 const markers = depsLayer.append('defs');
 markers.append('marker')
@@ -774,13 +794,13 @@ sidebarClose.addEventListener('click', (event) => {
 
 const bounds = content.node().getBBox();
 const scale = Math.min(1.08, Math.min((width - 40) / (bounds.width + 40), (height - 40) / (bounds.height + 40)));
-const tx = (width - (bounds.x + bounds.width / 2) * scale);
-const ty = (height - (bounds.y + bounds.height / 2) * scale);
-svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx / 2, ty / 2).scale(scale));
+const tx = (width / 2) - ((bounds.x + bounds.width / 2) * scale);
+const ty = (height / 2) - ((bounds.y + bounds.height / 2) * scale);
+svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
 </script>
 ${baseFoot()}`;
 
-  const changelogHtml = `${baseHead("What Changed", "", input.domains)}
+  const changelogHtml = `${baseHead("What Changed", projectName, "", input.domains)}
 <section class="card">
   <h1>What Changed</h1>
   <p class="muted">Generated ${escapeHtml(now)}</p>

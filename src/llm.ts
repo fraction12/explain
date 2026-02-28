@@ -92,7 +92,7 @@ export function createLlmClient(config: { apiKey: string; baseUrl: string; model
             `- ${entry.filePath}\n  entities: ${entry.entityNames.length ? entry.entityNames.join(", ") : "none"}\n  kinds: ${entry.entityKinds.length ? entry.entityKinds.join(", ") : "none"}`,
         )
         .join("\n");
-      const userPrompt = `Files and entities:\n${lines}\n\nReturn JSON array only in this exact shape:\n[{"name":"Domain Name","emoji":"🔐","description":"One sentence description","files":["src/lib/cors.ts"]}]\n\nRules:\n- Every file must appear in exactly one domain\n- Use 4-8 domains\n- Group by business function, not folder structure`;
+      const userPrompt = `Files and entities:\n${lines}\n\nReturn JSON array only in this exact shape:\n[{"name":"Domain Name","emoji":"🔐","description":"One sentence description","kind":"business","files":["src/lib/cors.ts"]}]\n\nRules:\n- Every file must appear in exactly one domain\n- Use 4-8 domains\n- Group by business function, not folder structure\n- Each domain must have "kind" set to "business" or "foundation"\n- Foundation domains are: shared utilities, helper functions, type definitions, configuration, environment setup, and code imported by many domains but not implementing a specific business feature. Examples: "Utility and Helpers", "Testing and Types", "Shared Config", "Common Types"\n- Business domains implement specific product features: Auth, Scoring, Submissions, etc.\n- At least 1 domain MUST be "foundation". If unsure, domains with "util", "helper", "common", "shared", "types", or "config" in the name should be foundation`;
 
       const maxAttempts = 3;
       let lastError: unknown;
@@ -107,7 +107,7 @@ export function createLlmClient(config: { apiKey: string; baseUrl: string; model
             throw new Error("Domain clustering response was not an array");
           }
 
-          return parsed.map((group) => ({
+          const mapped: DomainGroup[] = parsed.map((group) => ({
             name: group.name,
             emoji: group.emoji,
             description: group.description,
@@ -115,6 +115,15 @@ export function createLlmClient(config: { apiKey: string; baseUrl: string; model
             slug: group.name.toLowerCase().trim().replace(/\s+/g, "-"),
             kind: group.kind === "foundation" ? "foundation" : "business",
           }));
+
+          if (!mapped.some((group) => group.kind === "foundation")) {
+            const foundationHint = /(util|helper|common|shared|type|config|test)/i;
+            mapped.forEach((group) => {
+              if (foundationHint.test(group.name.toLowerCase())) group.kind = "foundation";
+            });
+          }
+
+          return mapped;
         } catch (error) {
           lastError = error;
           if (verbose) {
