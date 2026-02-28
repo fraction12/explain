@@ -6,6 +6,7 @@ export function writeJsonReport(input: {
   path: string;
   repoPath: string;
   repoUrl: string;
+  linkMode: "remote" | "local";
   branch: string;
   commit: string;
   config: ExplainConfig;
@@ -26,6 +27,7 @@ export function writeJsonReport(input: {
     repo: {
       path: input.repoPath,
       repoUrl: input.repoUrl,
+      linkMode: input.linkMode,
       branch: input.branch,
       commit: input.commit,
     },

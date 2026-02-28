@@ -11,7 +11,7 @@ export type EntityKind =
   | "module";
 
 export interface ExplainConfig {
-  repoUrl: string;
+  repoUrl?: string;
   include: string[];
   exclude: string[];
   output: string;
@@ -26,6 +26,7 @@ export interface ExplainConfig {
 }
 
 export interface CliArgs {
+  command: "run" | "init";
   repoPath: string;
   configPath?: string;
   output?: string;
@@ -36,6 +37,7 @@ export interface CliArgs {
   baseUrl?: string;
   model?: string;
   apiKey?: string;
+  noPrompt: boolean;
   verbose: boolean;
 }
 
@@ -112,6 +114,7 @@ export interface ReportJsonV1 {
   repo: {
     path: string;
     repoUrl: string;
+    linkMode: "remote" | "local";
     branch: string;
     commit: string;
   };

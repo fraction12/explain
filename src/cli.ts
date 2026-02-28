@@ -1,12 +1,16 @@
 #!/usr/bin/env node
+import fs from "node:fs";
 import path from "node:path";
+import readline from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
 import { parseArgs } from "./args";
 import { getDefaultCachePath, readCache, createExplanationCacheKey, shouldExplainEntity, writeCache } from "./cache";
 import { buildChangelog } from "./changelog";
 import { loadConfig } from "./config";
 import { buildDependencyEdges, buildGraph } from "./deps";
 import { discoverFiles } from "./discovery";
-import { getGitMetadata } from "./git";
+import { getGitMetadata, inferRepoUrl } from "./git";
+import { runInit } from "./init";
 import { createLlmClient, PROMPT_VERSION } from "./llm";
 import { buildSourceUrl } from "./links";
 import { parseFiles } from "./parser";
@@ -14,9 +18,87 @@ import { writeHtmlReport } from "./render/html";
 import { writeJsonReport } from "./render/json";
 import { Entity, ExplainError } from "./types";
 
+function upsertEnvKey(envPath: string, key: string, value: string): void {
+  let content = "";
+  if (fs.existsSync(envPath)) {
+    content = fs.readFileSync(envPath, "utf8");
+  }
+
+  const lines = content ? content.split(/\r?\n/) : [];
+  let replaced = false;
+  const updated = lines.map((line) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith(`${key}=`)) {
+      replaced = true;
+      return `${key}=${value}`;
+    }
+    return line;
+  });
+
+  if (!replaced) {
+    updated.push(`${key}=${value}`);
+  }
+
+  fs.writeFileSync(envPath, `${updated.filter(Boolean).join("\n")}\n`, "utf8");
+}
+
+function ensureGitignoreHasEnv(repoPath: string): void {
+  const gitignorePath = path.join(repoPath, ".gitignore");
+  const line = ".env";
+
+  if (!fs.existsSync(gitignorePath)) {
+    fs.writeFileSync(gitignorePath, `${line}\n`, "utf8");
+    return;
+  }
+
+  const content = fs.readFileSync(gitignorePath, "utf8");
+  const entries = content.split(/\r?\n/).map((v) => v.trim());
+  if (!entries.includes(line)) {
+    fs.appendFileSync(gitignorePath, `${content.endsWith("\n") ? "" : "\n"}${line}\n`, "utf8");
+  }
+}
+
+async function promptForApiKey(repoPath: string): Promise<string> {
+  const rl = readline.createInterface({ input, output });
+  try {
+    const key = (await rl.question("Enter EXPLAIN_API_KEY: ")).trim();
+    if (!key) {
+      throw new Error("No API key entered");
+    }
+
+    const persist = (await rl.question("Save key to <repo>/.env? (y/N): ")).trim().toLowerCase();
+    if (persist === "y" || persist === "yes") {
+      const envPath = path.join(repoPath, ".env");
+      upsertEnvKey(envPath, "EXPLAIN_API_KEY", key);
+      ensureGitignoreHasEnv(repoPath);
+    }
+
+    return key;
+  } finally {
+    rl.close();
+  }
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+
+  if (args.command === "init") {
+    runInit(args);
+    return;
+  }
+
   const { config } = loadConfig(args);
+
+  if (!config.llm.apiKey) {
+    if (args.noPrompt || !input.isTTY) {
+      throw new Error("Missing LLM API key. Use --api-key, EXPLAIN_API_KEY, or run interactively.");
+    }
+    config.llm.apiKey = await promptForApiKey(args.repoPath);
+  }
+
+  const inferredRepoUrl = await inferRepoUrl(args.repoPath);
+  const repoUrl = config.repoUrl ?? inferredRepoUrl ?? "";
+  const linkMode: "remote" | "local" = repoUrl ? "remote" : "local";
 
   const outputRoot = path.resolve(args.repoPath, config.output);
   const htmlDir = args.htmlDir ? path.resolve(args.htmlDir) : outputRoot;
@@ -27,7 +109,7 @@ async function main(): Promise<void> {
 
   if (args.verbose) {
     // eslint-disable-next-line no-console
-    console.log(`[explain] repo=${args.repoPath} branch=${git.branch} commit=${git.commit}`);
+    console.log(`[explain] repo=${args.repoPath} branch=${git.branch} commit=${git.commit} linkMode=${linkMode}`);
   }
 
   const files = discoverFiles(args.repoPath, config.include, config.exclude).sort((a, b) => a.path.localeCompare(b.path));
@@ -38,7 +120,7 @@ async function main(): Promise<void> {
     path: entry.filePath,
     imports: entry.imports,
     exports: entry.exports,
-    sourceUrl: buildSourceUrl(config.repoUrl, git.branch, entry.filePath),
+    sourceUrl: buildSourceUrl(repoUrl || undefined, git.branch, entry.filePath),
   }));
 
   const entities: Entity[] = parsed
@@ -49,7 +131,7 @@ async function main(): Promise<void> {
         text: "",
         status: "ok",
       },
-      sourceUrl: buildSourceUrl(config.repoUrl, git.branch, entity.filePath, entity.loc.startLine, entity.loc.endLine),
+      sourceUrl: buildSourceUrl(repoUrl || undefined, git.branch, entity.filePath, entity.loc.startLine, entity.loc.endLine),
     }));
 
   const routes = parsed.flatMap((entry) => entry.routes);
@@ -114,7 +196,8 @@ async function main(): Promise<void> {
   writeJsonReport({
     path: jsonPath,
     repoPath: args.repoPath,
-    repoUrl: config.repoUrl,
+    repoUrl,
+    linkMode,
     branch: git.branch,
     commit: git.commit,
     config,

@@ -51,22 +51,51 @@ function readConfig(configPath: string): RawConfig {
   return parsed;
 }
 
+function readEnvFile(repoPath: string): Record<string, string> {
+  const envPath = path.join(repoPath, ".env");
+  if (!fs.existsSync(envPath)) {
+    return {};
+  }
+
+  const data = fs.readFileSync(envPath, "utf8");
+  const output: Record<string, string> = {};
+  for (const line of data.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx <= 0) {
+      continue;
+    }
+    const key = trimmed.slice(0, eqIdx).trim();
+    const value = trimmed.slice(eqIdx + 1).trim().replace(/^['"]|['"]$/g, "");
+    output[key] = value;
+  }
+  return output;
+}
+
 export function loadConfig(args: CliArgs): { config: ExplainConfig; configPath: string } {
   const configPath = args.configPath
     ? path.resolve(args.configPath)
     : path.resolve(args.repoPath, ".explainrc.json");
   const fileConfig = readConfig(configPath);
+  const envFile = readEnvFile(args.repoPath);
 
   const baseUrl =
     args.baseUrl ?? process.env.EXPLAIN_BASE_URL ?? fileConfig.llm?.baseUrl ?? "https://api.openai.com/v1";
   const model = args.model ?? process.env.EXPLAIN_MODEL ?? fileConfig.llm?.model ?? "gpt-4o-mini";
   const apiKey =
-    args.apiKey ?? process.env.EXPLAIN_API_KEY ?? resolveEnvReference(fileConfig.llm?.apiKey) ?? "";
+    args.apiKey ??
+    process.env.EXPLAIN_API_KEY ??
+    resolveEnvReference(fileConfig.llm?.apiKey) ??
+    envFile.EXPLAIN_API_KEY ??
+    "";
 
-  const output = args.output ?? fileConfig.output ?? "docs/explain";
+  const output = args.output ?? fileConfig.output ?? "explain-output";
 
   const config: ExplainConfig = {
-    repoUrl: fileConfig.repoUrl ?? "",
+    repoUrl: fileConfig.repoUrl,
     include: fileConfig.include ?? DEFAULT_INCLUDE,
     exclude: fileConfig.exclude ?? DEFAULT_EXCLUDE,
     output,
@@ -79,14 +108,6 @@ export function loadConfig(args: CliArgs): { config: ExplainConfig; configPath: 
       maxNodes: args.maxGraphNodes ?? fileConfig.graph?.maxNodes ?? 50,
     },
   };
-
-  if (!config.repoUrl) {
-    throw new Error("Missing required config field: repoUrl");
-  }
-
-  if (!config.llm.apiKey) {
-    throw new Error("Missing LLM API key. Set EXPLAIN_API_KEY or llm.apiKey in config.");
-  }
 
   return { config, configPath };
 }

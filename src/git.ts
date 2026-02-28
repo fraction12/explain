@@ -15,3 +15,32 @@ export async function getGitMetadata(repoPath: string): Promise<{ branch: string
     };
   }
 }
+
+function normalizeRemoteToHttps(remoteUrl: string): string | null {
+  const cleaned = remoteUrl.trim().replace(/\.git$/, "");
+  if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+    return cleaned.replace(/^http:\/\//, "https://");
+  }
+
+  const sshMatch = cleaned.match(/^git@([^:]+):(.+)$/);
+  if (sshMatch) {
+    return `https://${sshMatch[1]}/${sshMatch[2]}`;
+  }
+
+  const sshUrlMatch = cleaned.match(/^ssh:\/\/git@([^/]+)\/(.+)$/);
+  if (sshUrlMatch) {
+    return `https://${sshUrlMatch[1]}/${sshUrlMatch[2]}`;
+  }
+
+  return null;
+}
+
+export async function inferRepoUrl(repoPath: string): Promise<string | null> {
+  try {
+    const git = simpleGit(repoPath);
+    const remoteUrl = await git.remote(["get-url", "origin"]);
+    return normalizeRemoteToHttps(remoteUrl) ?? null;
+  } catch {
+    return null;
+  }
+}

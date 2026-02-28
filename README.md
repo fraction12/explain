@@ -49,31 +49,42 @@ Built for PMs, founders, and anyone who builds with AI but needs to actually und
 
 ```bash
 npm install
-cp .env.example .env  # add your LLM API key
 ```
 
-### Configuration
+## Quick Start (Zero Config)
 
-Create a `.explainrc.json` in your target repo:
+Run directly against any TypeScript/JavaScript repo:
+
+```bash
+npx explain /absolute/path/to/repo
+```
+
+If no API key is found, `explain` will prompt for one and optionally save it to `<repo>/.env`.
+
+### Optional explicit setup (`init`)
+
+```bash
+npx explain init /absolute/path/to/repo --api-key <key>
+```
+
+This creates a minimal `.explainrc.json` and saves `EXPLAIN_API_KEY` into `<repo>/.env`.
+
+### Optional `.explainrc.json`
+
+`explain` works without config, but if you want to customize behavior:
 
 ```json
 {
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["**/*.test.ts", "**/*.spec.ts", "node_modules"],
+  "include": ["**/*.{ts,tsx,js,jsx}"],
+  "exclude": ["**/*.test.*", "**/*.spec.*", "node_modules/**", "dist/**", "build/**"],
   "llm": {
     "baseUrl": "https://api.openai.com/v1",
     "model": "gpt-4o-mini",
     "apiKey": "$EXPLAIN_API_KEY"
   },
-  "output": "docs/explain.html",
+  "output": "explain-output",
   "repoUrl": "https://github.com/your-org/your-repo"
 }
-```
-
-### Run locally
-
-```bash
-npx explain ./path/to/repo
 ```
 
 ### CLI options
@@ -81,13 +92,14 @@ npx explain ./path/to/repo
 ```bash
 explain <repoPath> \
   [--config .explainrc.json] \
-  [--output docs/explain] \
-  [--json docs/explain/report.json] \
-  [--html docs/explain] \
+  [--output explain-output] \
+  [--json explain-output/report.json] \
+  [--html explain-output] \
   [--max-graph-nodes 50] \
   [--base-url https://api.openai.com/v1] \
   [--model gpt-4o-mini] \
   [--api-key <key>] \
+  [--no-prompt] \
   [--force] \
   [--verbose]
 ```

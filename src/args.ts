@@ -3,14 +3,22 @@ import { CliArgs } from "./types";
 
 export function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
+    command: "run",
     repoPath: "",
     force: false,
+    noPrompt: false,
     verbose: false,
   };
 
   const positionals: string[] = [];
+  let startIndex = 0;
 
-  for (let i = 0; i < argv.length; i += 1) {
+  if (argv[0] === "init") {
+    args.command = "init";
+    startIndex = 1;
+  }
+
+  for (let i = startIndex; i < argv.length; i += 1) {
     const arg = argv[i];
     const next = argv[i + 1];
 
@@ -47,6 +55,9 @@ export function parseArgs(argv: string[]): CliArgs {
         args.apiKey = next;
         i += 1;
         break;
+      case "--no-prompt":
+        args.noPrompt = true;
+        break;
       case "--force":
         args.force = true;
         break;
@@ -76,7 +87,9 @@ export function parseArgs(argv: string[]): CliArgs {
 
 function printHelpAndExit(code: number): never {
   // eslint-disable-next-line no-console
-  console.log(`Usage: explain <repoPath> [options]
+  console.log(`Usage:
+  explain <repoPath> [options]
+  explain init <repoPath> [options]
 
 Options:
   --config <path>            Path to .explainrc.json
@@ -87,6 +100,7 @@ Options:
   --base-url <url>           LLM base URL override
   --model <model>            LLM model override
   --api-key <key>            LLM API key override
+  --no-prompt                Disable interactive prompts
   --force                    Re-run explanations for all entities
   --verbose                  Verbose logs
   -h, --help                 Show this help
