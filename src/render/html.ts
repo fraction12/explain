@@ -513,7 +513,7 @@ body.sidebar-collapsed .site-footer { margin-left: 60px; }
 .kind-function, .kind-class, .kind-interface, .kind-type, .kind-variable, .kind-enum, .kind-component { }
 
 /* Inline entity on domain pages */
-.entity-block { margin-bottom: var(--space-lg); padding: var(--space-md); background: #0f172a; border-radius: 6px; }
+.entity-block { margin-bottom: var(--space-xl); padding: var(--space-md); background: #0f172a; border-radius: 6px; }
 .entity-block h3 { margin: 0 0 var(--space-sm) 0; font-size: 15px; }
 .entity-block .explanation { color: #d1d5db; line-height: 1.6; margin: var(--space-sm) 0; }
 .explanation p { margin: 0 0 var(--space-sm) 0; max-width: 720px; }
