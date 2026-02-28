@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ChangelogData, DomainGroup, Entity, GraphData, RouteInfo } from "../types";
+import { ChangelogData, DomainGroup, Entity, RouteInfo } from "../types";
 import { escapeHtml, sha256, slugify } from "../utils";
 
 interface HtmlInput {
@@ -9,7 +9,6 @@ interface HtmlInput {
   files: Array<{ path: string; imports: string[]; exports: string[]; sourceUrl: string }>;
   routes: RouteInfo[];
   changelog: ChangelogData;
-  graph: GraphData;
   projectSummary: string;
   domains: DomainGroup[];
 }
@@ -22,20 +21,31 @@ function pageTitle(title: string): string {
   return `${title} | Explain`;
 }
 
-function buildNav(assetPrefix: string): string {
-  return `<nav class="navbar">
-  <a href="${assetPrefix}index.html" class="brand">Explain</a>
-  <div class="nav-links">
-    <a href="${assetPrefix}index.html">Overview</a>
-    <a href="${assetPrefix}api.html">API Reference</a>
-    <a href="${assetPrefix}graph.html">Graph Explorer</a>
-    <a href="${assetPrefix}reference.html">Developer Reference</a>
-    <a href="${assetPrefix}changelog.html">What Changed</a>
-  </div>
-</nav>`;
+function buildSidebar(assetPrefix: string, domains: DomainGroup[]): string {
+  const domainLinks = domains
+    .map((domain) => `<a href="${assetPrefix}domains/${domain.slug}.html" class="sidebar-link sidebar-indent">${escapeHtml(domain.emoji)} ${escapeHtml(domain.name)}</a>`)
+    .join("\n");
+
+  return `<aside class="sidebar">
+  <div class="sidebar-brand"><a href="${assetPrefix}index.html">Explain</a></div>
+  <nav class="sidebar-nav">
+    <a href="${assetPrefix}index.html" class="sidebar-link">Overview</a>
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Domains</div>
+      ${domainLinks}
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Reference</div>
+      <a href="${assetPrefix}api.html" class="sidebar-link">API Reference</a>
+      <a href="${assetPrefix}graph.html" class="sidebar-link">Architecture Map</a>
+      <a href="${assetPrefix}reference.html" class="sidebar-link">Developer Reference</a>
+      <a href="${assetPrefix}changelog.html" class="sidebar-link">What Changed</a>
+    </div>
+  </nav>
+</aside>`;
 }
 
-function baseHead(title: string, assetPrefix: string): string {
+function baseHead(title: string, assetPrefix: string, domains: DomainGroup[], contentClass = "content"): string {
   return `<!doctype html>
 <html>
 <head>
@@ -45,8 +55,8 @@ function baseHead(title: string, assetPrefix: string): string {
   <link rel="stylesheet" href="${assetPrefix}styles.css" />
 </head>
 <body>
-${buildNav(assetPrefix)}
-<main class="container">`;
+${buildSidebar(assetPrefix, domains)}
+<main class="${contentClass}">`;
 }
 
 function baseFoot(): string {
@@ -78,7 +88,6 @@ function buildStyles(): string {
 }
 * { box-sizing: border-box; }
 body { margin: 0; font-family: ui-sans-serif, -apple-system, Segoe UI, sans-serif; background: radial-gradient(circle at top, #1e293b 0%, var(--bg) 55%); color: var(--text); }
-.container { max-width: 1100px; margin: 0 auto; padding: 20px; }
 a { color: var(--link); }
 small, .muted { color: var(--muted); }
 pre { white-space: pre-wrap; background: #0b1220; border-radius: 8px; padding: 12px; border: 1px solid #23314a; }
@@ -90,12 +99,17 @@ pre { white-space: pre-wrap; background: #0b1220; border-radius: 8px; padding: 1
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
 .card { background: rgba(17, 24, 39, 0.85); border: 1px solid #243244; border-radius: 10px; padding: 14px; margin-bottom: 14px; }
 
-/* Navigation */
-.navbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid #243244; background: rgba(17, 24, 39, 0.95); position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px); }
-.navbar .brand { color: #e5e7eb; text-decoration: none; font-weight: 700; font-size: 1.1em; }
-.nav-links { display: flex; gap: 20px; }
-.nav-links a { color: #9ca3af; text-decoration: none; font-size: 0.9em; transition: color 0.2s; }
-.nav-links a:hover, .nav-links a.active { color: #7dd3fc; }
+/* Sidebar */
+.sidebar { position: fixed; top: 0; left: 0; width: 260px; height: 100vh; overflow-y: auto; background: #111827; border-right: 1px solid #243244; padding: 20px 0; z-index: 100; }
+.sidebar-brand { padding: 0 20px 16px; border-bottom: 1px solid #243244; margin-bottom: 16px; }
+.sidebar-brand a { color: #e5e7eb; text-decoration: none; font-weight: 700; font-size: 1.2em; }
+.sidebar-nav { display: flex; flex-direction: column; }
+.sidebar-link { display: block; padding: 8px 20px; color: #9ca3af; text-decoration: none; font-size: 0.9em; transition: color 0.2s, background 0.2s; }
+.sidebar-link:hover { color: #7dd3fc; background: rgba(125, 211, 252, 0.05); }
+.sidebar-indent { padding-left: 36px; font-size: 0.85em; }
+.sidebar-heading { padding: 16px 20px 6px; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; }
+.content { margin-left: 260px; padding: 24px 32px; max-width: 900px; }
+.content-wide { margin-left: 260px; padding: 24px 32px; max-width: none; }
 
 /* Domain cards */
 .domain-card { background: rgba(17, 24, 39, 0.85); border: 1px solid #243244; border-radius: 12px; padding: 20px; transition: border-color 0.2s; }
@@ -121,13 +135,10 @@ pre { white-space: pre-wrap; background: #0b1220; border-radius: 8px; padding: 1
 .entity-block .explanation { color: #d1d5db; line-height: 1.6; margin: 8px 0; }
 .entity-block .meta { font-size: 0.8em; color: #6b7280; }
 
-/* Graph */
-.graph-wrap { position: relative; }
-.graph-container { width: 100%; height: calc(100vh - 60px); }
-.graph-tooltip { position: absolute; background: rgba(17, 24, 39, 0.95); border: 1px solid #243244; border-radius: 8px; padding: 10px 14px; color: #e5e7eb; font-size: 0.85em; pointer-events: none; z-index: 200; display: none; }
-.graph-legend { position: absolute; top: 80px; right: 20px; background: rgba(17, 24, 39, 0.9); border: 1px solid #243244; border-radius: 8px; padding: 12px; }
-.graph-legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.85em; }
-.graph-legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+/* Tree */
+.tree-wrap { position: relative; border: 1px solid #243244; border-radius: 10px; background: rgba(11, 18, 32, 0.7); overflow: hidden; }
+.tree-container { width: 100%; min-height: 600px; display: block; }
+.tree-tooltip { position: absolute; background: rgba(17, 24, 39, 0.95); border: 1px solid #243244; border-radius: 8px; padding: 10px 14px; color: #e5e7eb; font-size: 0.85em; pointer-events: none; z-index: 200; display: none; }
 `;
 }
 
@@ -190,7 +201,7 @@ export function writeHtmlReport(input: HtmlInput): void {
       })
       .join("\n");
 
-    const html = `${baseHead(`File: ${file.path}`, "../")}
+    const html = `${baseHead(`File: ${file.path}`, "../", input.domains)}
 <section class="card">
   <h1>${escapeHtml(file.path)}</h1>
   <p><a href="${escapeHtml(file.sourceUrl)}" target="_blank" rel="noreferrer">View source</a></p>
@@ -206,7 +217,7 @@ ${baseFoot()}`;
 
   for (const entity of input.entities) {
     const fileHref = `../files/${filePageMap.get(entity.filePath)}`;
-    const html = `${baseHead(`Entity: ${entity.name}`, "../")}
+    const html = `${baseHead(`Entity: ${entity.name}`, "../", input.domains)}
 <section class="card">
   <h1>${escapeHtml(entity.name)} <span class="badge">${escapeHtml(entity.kind)}</span></h1>
   <p class="muted">${escapeHtml(entity.filePath)}:${entity.loc.startLine}-${entity.loc.endLine}</p>
@@ -245,7 +256,7 @@ ${baseFoot()}`;
       })
       .join("\n");
 
-    const domainHtml = `${baseHead(`${domain.emoji} ${domain.name}`, "../")}
+    const domainHtml = `${baseHead(`${domain.emoji} ${domain.name}`, "../", input.domains)}
 <section class="card">
   <h1>${escapeHtml(`${domain.emoji} ${domain.name}`)}</h1>
   <p class="muted">${escapeHtml(domain.description)}</p>
@@ -302,32 +313,27 @@ ${baseFoot()}`;
       }</ul></section>
 <section class="card"><h2>Removed</h2><ul>${input.changelog.removedEntities.map((id) => `<li>${escapeHtml(id)}</li>`).join("") || "<li>None</li>"}</ul></section>`;
 
-  const graphData = {
-    nodes: input.files.map((file) => {
-      const domain = fileToDomain.get(file.path);
-      const entityCount = input.entities.filter((e) => e.filePath === file.path).length;
-      return {
-        id: file.path,
-        label: file.path.split("/").slice(-2).join("/"),
-        domain: domain?.name ?? "Other",
-        entityCount,
-        color: domainColorMap.get(domain?.name ?? "") ?? "#9ca3af",
-        href: `files/${filePageMap.get(file.path)}`,
-      };
-    }),
-    edges: input.files.flatMap((file) => file.imports.map((imp) => ({ source: file.path, target: imp }))),
-    domains: input.domains.map((domain) => ({
-      name: domain.name,
-      color: domainColorMap.get(domain.name) ?? "#9ca3af",
-      emoji: domain.emoji,
+  const projectName = path.basename(process.cwd());
+  const treeData = {
+    name: projectName,
+    children: input.domains.map((domain) => ({
+      name: `${domain.emoji} ${domain.name}`,
+      slug: domain.slug,
+      children: domain.files
+        .filter((filePath, index, arr) => arr.indexOf(filePath) === index)
+        .map((filePath) => ({
+          name: path.basename(filePath).replace(path.extname(filePath), "") || filePath,
+          file: filePath,
+          href: `files/${filePageMap.get(filePath)}`,
+        })),
     })),
   };
 
-  fs.writeFileSync(path.join(input.outDir, "graph-data.js"), `window.GRAPH_DATA = ${JSON.stringify(graphData, null, 2)};\n`, "utf8");
+  fs.writeFileSync(path.join(input.outDir, "tree-data.js"), `window.TREE_DATA = ${JSON.stringify(treeData, null, 2)};\n`, "utf8");
 
   const now = new Date().toISOString();
 
-  const indexHtml = `${baseHead("Overview", "")}
+  const indexHtml = `${baseHead("Overview", "", input.domains)}
 <section class="card">
   <h1>Architecture Overview</h1>
   <p>${escapeHtml(input.projectSummary)}</p>
@@ -341,7 +347,7 @@ ${baseFoot()}`;
 <script src="./app.js"></script>
 ${baseFoot()}`;
 
-  const referenceHtml = `${baseHead("Developer Reference", "")}
+  const referenceHtml = `${baseHead("Developer Reference", "", input.domains)}
 <section class="card">
   <h1>Developer Reference</h1>
   <input id="search" type="search" placeholder="Search entities" style="width:100%;padding:10px;border-radius:8px;border:1px solid #243244;background:#0b1220;color:#e5e7eb;margin-bottom:12px" />
@@ -353,7 +359,7 @@ ${baseFoot()}`;
 <script src="./app.js"></script>
 ${baseFoot()}`;
 
-  const apiHtml = `${baseHead("API Reference", "")}
+  const apiHtml = `${baseHead("API Reference", "", input.domains)}
 <section class="card">
   <h1>API Reference</h1>
   <table class="table">
@@ -363,91 +369,98 @@ ${baseFoot()}`;
 </section>
 ${baseFoot()}`;
 
-  const graphHtml = `${baseHead("Graph Explorer", "")}
-<div class="graph-wrap">
-  <div id="tooltip" class="graph-tooltip"></div>
-  <div class="graph-legend" id="legend"></div>
-  <svg id="graph" class="graph-container"></svg>
+  const graphHtml = `${baseHead("Architecture Map", "", input.domains, "content-wide")}
+<section class="card">
+  <h1>Architecture Map</h1>
+  <p class="muted">Project, domains, and key capabilities by file.</p>
+</section>
+<div class="tree-wrap">
+  <div id="tooltip" class="tree-tooltip"></div>
+  <svg id="tree" class="tree-container"></svg>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script src="graph-data.js"></script>
+<script src="tree-data.js"></script>
 <script>
-const data = window.GRAPH_DATA;
-const svg = d3.select('#graph');
-const width = window.innerWidth;
-const height = Math.max(window.innerHeight - 60, 300);
-svg.attr('viewBox', [0, 0, width, height]);
-const g = svg.append('g');
-const tooltip = document.getElementById('tooltip');
+const data = window.TREE_DATA;
+const domainColors = new Map(${JSON.stringify(input.domains.map((domain) => [domain.slug, domainColorMap.get(domain.name) ?? "#9ca3af"]))});
+const root = d3.hierarchy(data);
+const leafCount = root.leaves().length;
+const maxDepth = root.height;
+const width = Math.max(900, (maxDepth + 1) * 250 + 200);
+const height = Math.max(600, leafCount * 24 + 140);
+const margin = { top: 40, right: 120, bottom: 40, left: 120 };
 
-svg.call(d3.zoom().on('zoom', (event) => g.attr('transform', event.transform)));
+const svg = d3.select('#tree')
+  .attr('viewBox', [0, 0, width, height])
+  .attr('preserveAspectRatio', 'xMidYMid meet');
 
-const defs = svg.append('defs');
-defs.append('marker')
-  .attr('id', 'arrow')
-  .attr('viewBox', '0 -5 10 10')
-  .attr('refX', 20)
-  .attr('refY', 0)
-  .attr('markerWidth', 6)
-  .attr('markerHeight', 6)
-  .attr('orient', 'auto')
-  .append('path')
-  .attr('d', 'M0,-5L10,0L0,5')
-  .attr('fill', '#6b7280');
+const zoomGroup = svg.append('g');
+const content = zoomGroup.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
-const links = g.append('g').selectAll('line')
-  .data(data.edges)
-  .join('line')
+svg.call(d3.zoom().scaleExtent([0.4, 2.5]).on('zoom', (event) => zoomGroup.attr('transform', event.transform)));
+
+const tree = d3.tree().size([height - margin.top - margin.bottom, width - margin.left - margin.right]);
+tree(root);
+
+const link = d3.linkHorizontal().x(d => d.y).y(d => d.x);
+content.append('g')
+  .selectAll('path')
+  .data(root.links())
+  .join('path')
+  .attr('fill', 'none')
   .attr('stroke', '#4b5563')
-  .attr('stroke-opacity', 0.8)
-  .attr('marker-end', 'url(#arrow)');
+  .attr('stroke-width', 1.5)
+  .attr('d', link);
 
-const nodes = g.append('g').selectAll('circle')
-  .data(data.nodes)
-  .join('circle')
-  .attr('r', d => Math.max(8, Math.min(30, 8 + d.entityCount * 2)))
-  .attr('fill', d => d.color)
-  .style('cursor', 'pointer')
+const tooltip = document.getElementById('tooltip');
+const node = content.append('g')
+  .selectAll('g')
+  .data(root.descendants())
+  .join('g')
+  .attr('transform', d => 'translate(' + d.y + ',' + d.x + ')')
+  .style('cursor', d => d.depth > 0 ? 'pointer' : 'default')
+  .on('click', (_, d) => {
+    if (d.depth === 1 && d.data.slug) window.location.href = 'domains/' + d.data.slug + '.html';
+    if (d.depth === 2 && d.data.href) window.location.href = d.data.href;
+  })
   .on('mouseover', (event, d) => {
+    if (d.depth !== 2 || !d.data.file) return;
     tooltip.style.display = 'block';
-    tooltip.innerHTML = '<strong>' + d.id + '</strong><br/>Domain: ' + d.domain + '<br/>Entities: ' + d.entityCount;
+    tooltip.textContent = d.data.file;
   })
   .on('mousemove', (event) => {
     tooltip.style.left = (event.pageX + 12) + 'px';
     tooltip.style.top = (event.pageY + 12) + 'px';
   })
-  .on('mouseout', () => tooltip.style.display = 'none')
-  .on('click', (_, d) => window.location.href = d.href)
-  .call(d3.drag()
-    .on('start', (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-    .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
-    .on('end', (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+  .on('mouseout', () => { tooltip.style.display = 'none'; });
 
-const simulation = d3.forceSimulation(data.nodes)
-  .force('link', d3.forceLink(data.edges).id(d => d.id).distance(110))
-  .force('charge', d3.forceManyBody().strength(-320))
-  .force('center', d3.forceCenter(width / 2, height / 2));
+node.append('circle')
+  .attr('r', d => d.depth === 0 ? 12 : d.depth === 1 ? 10 : 5)
+  .attr('fill', d => {
+    if (d.depth === 0) return '#ffffff';
+    if (d.depth === 1) return domainColors.get(d.data.slug) || '#9ca3af';
+    return domainColors.get(d.parent?.data?.slug) || '#9ca3af';
+  })
+  .attr('stroke', '#111827')
+  .attr('stroke-width', 1.5);
 
-simulation.on('tick', () => {
-  links
-    .attr('x1', d => d.source.x)
-    .attr('y1', d => d.source.y)
-    .attr('x2', d => d.target.x)
-    .attr('y2', d => d.target.y);
+node.append('text')
+  .attr('x', d => d.depth === 0 ? -16 : 10)
+  .attr('text-anchor', d => d.depth === 0 ? 'end' : 'start')
+  .attr('dominant-baseline', 'middle')
+  .style('fill', '#ffffff')
+  .style('font-size', d => d.depth === 1 ? '13px' : d.depth === 2 ? '11px' : '14px')
+  .text(d => d.data.name);
 
-  nodes
-    .attr('cx', d => d.x)
-    .attr('cy', d => d.y);
-});
-
-const legend = document.getElementById('legend');
-legend.innerHTML = data.domains.map(d =>
-  "<div class='graph-legend-item'><span class='graph-legend-dot' style='background:" + d.color + "'></span><span>" + d.emoji + " " + d.name + "</span></div>"
-).join('');
+const bounds = content.node().getBBox();
+const scale = Math.min(1.1, Math.min((width - 40) / (bounds.width + 40), (height - 40) / (bounds.height + 40)));
+const tx = (width - (bounds.x + bounds.width / 2) * scale);
+const ty = (height - (bounds.y + bounds.height / 2) * scale);
+svg.call(d3.zoom().transform, d3.zoomIdentity.translate(tx / 2, ty / 2).scale(scale));
 </script>
 ${baseFoot()}`;
 
-  const changelogHtml = `${baseHead("What Changed", "")}
+  const changelogHtml = `${baseHead("What Changed", "", input.domains)}
 <section class="card">
   <h1>What Changed</h1>
   <p class="muted">Generated ${escapeHtml(now)}</p>

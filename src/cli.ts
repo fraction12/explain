@@ -309,7 +309,6 @@ async function main(): Promise<void> {
     files: fileSummaries,
     routes,
     changelog,
-    graph,
     projectSummary,
     domains,
   });
