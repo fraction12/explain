@@ -99,7 +99,9 @@ export function createLlmClient(config: { apiKey: string; baseUrl: string; model
 
       for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         try {
-          const text = await completeWithRetry(systemPrompt, userPrompt);
+          let text = await completeWithRetry(systemPrompt, userPrompt);
+          // Strip markdown code fences if present
+          text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
           const parsed = JSON.parse(text) as Array<Omit<DomainGroup, "slug"> & { slug?: string }>;
           if (!Array.isArray(parsed)) {
             throw new Error("Domain clustering response was not an array");
