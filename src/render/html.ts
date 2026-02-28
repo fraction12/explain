@@ -1081,6 +1081,10 @@ document.getElementById('search')?.addEventListener('input', filterRows);
     renderResults('');
   }
 
+  function escHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   function renderResults(query) {
     var items = (window.SEARCH_INDEX || []).filter(function(item) {
       var q = query.toLowerCase();
@@ -1094,10 +1098,22 @@ document.getElementById('search')?.addEventListener('input', filterRows);
       return;
     }
 
-    results.innerHTML = items.map(function(item, i) {
-      var prefix = document.body.getAttribute('data-asset-prefix') || '';
-      return '<a class="search-result' + (i === 0 ? ' active' : '') + '" data-index="' + i + '" href="' + prefix + item.path + '"><span class="search-type">' + item.type + '</span>' + item.name + '</a>';
-    }).join('');
+    var prefix = document.body.getAttribute('data-asset-prefix') || '';
+    var fragment = document.createDocumentFragment();
+    items.forEach(function(item, i) {
+      var a = document.createElement('a');
+      a.className = 'search-result' + (i === 0 ? ' active' : '');
+      a.dataset.index = String(i);
+      a.href = prefix + escHtml(item.path);
+      var typeSpan = document.createElement('span');
+      typeSpan.className = 'search-type';
+      typeSpan.textContent = item.type;
+      a.appendChild(typeSpan);
+      a.appendChild(document.createTextNode(item.name));
+      fragment.appendChild(a);
+    });
+    results.innerHTML = '';
+    results.appendChild(fragment);
 
     activeItems = Array.from(results.querySelectorAll('.search-result'));
     activeIndex = 0;
