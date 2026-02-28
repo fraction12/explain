@@ -53,6 +53,10 @@ export function writeCache(
   fileHashes: Record<string, string>,
   entities: Entity[],
   explanations: CacheSnapshot["explanations"],
+  extras?: {
+    projectSummaries?: Record<string, string>;
+    domainClusters?: CacheSnapshot["domainClusters"];
+  },
 ): CacheSnapshot {
   const entityHashes = Object.fromEntries(entities.map((entity) => [entity.id, entity.contentHash]));
 
@@ -63,6 +67,8 @@ export function writeCache(
     fileHashes,
     entityHashes,
     explanations,
+    projectSummaries: extras?.projectSummaries ?? {},
+    domainClusters: extras?.domainClusters ?? {},
     lastSuccessfulSnapshot: {
       entityHashes,
       entityIds: entities.map((entity) => entity.id),

@@ -94,6 +94,14 @@ export interface GraphData {
   omittedNodeCount: number;
 }
 
+export interface DomainGroup {
+  name: string;
+  emoji: string;
+  description: string;
+  slug: string;
+  files: string[];
+}
+
 export interface ChangelogData {
   addedEntities: string[];
   removedEntities: string[];
@@ -157,6 +165,8 @@ export interface ReportJsonV1 {
   routes: RouteInfo[];
   changelog: ChangelogData;
   graph: GraphData;
+  projectSummary: string;
+  domains: DomainGroup[];
   errors: ExplainError[];
 }
 
@@ -173,6 +183,8 @@ export interface CacheSnapshot {
       errorMessage?: string;
     }
   >;
+  projectSummaries?: Record<string, string>;
+  domainClusters?: Record<string, DomainGroup[]>;
   lastSuccessfulSnapshot: {
     entityHashes: Record<string, string>;
     entityIds: string[];

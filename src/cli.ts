@@ -16,7 +16,7 @@ import { buildSourceUrl } from "./links";
 import { parseFiles } from "./parser";
 import { writeHtmlReport } from "./render/html";
 import { writeJsonReport } from "./render/json";
-import { Entity, ExplainError } from "./types";
+import { DomainGroup, Entity, ExplainError } from "./types";
 
 interface LlmProgressState {
   total: number;
@@ -245,6 +245,39 @@ async function main(): Promise<void> {
   }
   updateProgress(progress, true);
 
+  const summaryContext = parsed.map((entry) => ({
+    filePath: entry.filePath,
+    entityNames: entry.entities.map((e) => e.name),
+    importCount: entry.imports.length,
+    exportCount: entry.exports.length,
+  }));
+
+  const domainContext = parsed.map((entry) => ({
+    filePath: entry.filePath,
+    entityNames: entry.entities.map((e) => e.name),
+    entityKinds: entry.entities.map((e) => e.kind),
+  }));
+
+  const summaryHashKey = createExplanationCacheKey(
+    JSON.stringify(summaryContext.map((c) => c.filePath).sort()),
+    config.llm.model,
+    `${PROMPT_VERSION}-summary`,
+  );
+  let projectSummary = previousCache?.projectSummaries?.[summaryHashKey] ?? "";
+  if (!projectSummary || args.force) {
+    projectSummary = await llm.generateProjectSummary(summaryContext);
+  }
+
+  const domainHashKey = createExplanationCacheKey(
+    JSON.stringify(domainContext.map((c) => c.filePath).sort()),
+    config.llm.model,
+    `${PROMPT_VERSION}-domains`,
+  );
+  let domains: DomainGroup[] = previousCache?.domainClusters?.[domainHashKey] ?? [];
+  if (domains.length === 0 || args.force) {
+    domains = await llm.clusterDomains(domainContext);
+  }
+
   const entityHashes = Object.fromEntries(entities.map((entity) => [entity.id, entity.contentHash]));
   const changelog = buildChangelog(entityHashes, previousCache);
 
@@ -266,6 +299,8 @@ async function main(): Promise<void> {
     changelog,
     graph,
     errors,
+    projectSummary,
+    domains,
   });
 
   writeHtmlReport({
@@ -275,9 +310,20 @@ async function main(): Promise<void> {
     routes,
     changelog,
     graph,
+    projectSummary,
+    domains,
   });
 
-  writeCache(cachePath, fileHashes, entities, explanationCache);
+  writeCache(cachePath, fileHashes, entities, explanationCache, {
+    projectSummaries: {
+      ...(previousCache?.projectSummaries ?? {}),
+      [summaryHashKey]: projectSummary,
+    },
+    domainClusters: {
+      ...(previousCache?.domainClusters ?? {}),
+      [domainHashKey]: domains,
+    },
+  });
 
   // eslint-disable-next-line no-console
   console.log(

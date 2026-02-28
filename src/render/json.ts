@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ChangelogData, DependencyEdge, Entity, ExplainConfig, ExplainError, ReportJsonV1, RouteInfo } from "../types";
+import { ChangelogData, DependencyEdge, DomainGroup, Entity, ExplainConfig, ExplainError, ReportJsonV1, RouteInfo } from "../types";
 
 export function writeJsonReport(input: {
   path: string;
@@ -17,6 +17,8 @@ export function writeJsonReport(input: {
   changelog: ChangelogData;
   graph: ReportJsonV1["graph"];
   errors: ExplainError[];
+  projectSummary: string;
+  domains: DomainGroup[];
 }): ReportJsonV1 {
   const llmFailedCount = input.entities.filter((e) => e.explanation.status === "failed").length;
   const llmCachedCount = input.entities.filter((e) => e.explanation.status === "cached").length;
@@ -70,6 +72,8 @@ export function writeJsonReport(input: {
     routes: input.routes,
     changelog: input.changelog,
     graph: input.graph,
+    projectSummary: input.projectSummary,
+    domains: input.domains,
     errors: input.errors,
   };
 
