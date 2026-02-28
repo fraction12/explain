@@ -24,12 +24,14 @@ function normalizeRemoteToHttps(remoteUrl: string): string | null {
 
   const sshMatch = cleaned.match(/^git@([^:]+):(.+)$/);
   if (sshMatch) {
-    return `https://${sshMatch[1]}/${sshMatch[2]}`;
+    const [, host, repo] = sshMatch;
+    return `https://${host}/${repo}`;
   }
 
   const sshUrlMatch = cleaned.match(/^ssh:\/\/git@([^/]+)\/(.+)$/);
   if (sshUrlMatch) {
-    return `https://${sshUrlMatch[1]}/${sshUrlMatch[2]}`;
+    const [, host, repo] = sshUrlMatch;
+    return `https://${host}/${repo}`;
   }
 
   return null;
@@ -39,6 +41,9 @@ export async function inferRepoUrl(repoPath: string): Promise<string | null> {
   try {
     const git = simpleGit(repoPath);
     const remoteUrl = await git.remote(["get-url", "origin"]);
+    if (typeof remoteUrl !== "string") {
+      return null;
+    }
     return normalizeRemoteToHttps(remoteUrl) ?? null;
   } catch {
     return null;

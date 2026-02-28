@@ -5,7 +5,7 @@ export function buildChangelog(currentEntityHashes: Record<string, string>, prev
   if (!prev) {
     const ids = Object.keys(currentEntityHashes);
     return {
-      addedEntities: ids,
+      addedEntities: [],
       removedEntities: [],
       changedEntities: [],
       summaryText: `Initial snapshot: ${ids.length} entities analyzed.`,

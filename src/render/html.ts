@@ -54,11 +54,37 @@ function entityPageName(entity: Entity): string {
 }
 
 function toMermaid(graph: GraphData): string {
-  const rows = graph.edges.map((edge) => `  \"${edge.from}\" --> \"${edge.to}\"`);
-  if (rows.length === 0) {
+  if (graph.edges.length === 0) {
     return "graph TD\n  A[No dependencies detected]";
   }
-  return `graph TD\n${rows.join("\n")}`;
+
+  const nodeIds = new Set<string>();
+  for (const edge of graph.edges) {
+    nodeIds.add(edge.from);
+    nodeIds.add(edge.to);
+  }
+
+  const labelByNode = new Map<string, string>();
+  for (const node of nodeIds) {
+    const parts = node.split("/").filter(Boolean);
+    const short = parts.length >= 2 ? `${parts[parts.length - 2]}/${parts[parts.length - 1]}` : parts[0] ?? node;
+    labelByNode.set(node, short);
+  }
+
+  const rows: string[] = ["graph TD"];
+  for (const node of nodeIds) {
+    const id = `n_${sha256(node).slice(0, 8)}`;
+    rows.push(`  ${id}[\"${(labelByNode.get(node) ?? node).replace(/\"/g, '\\\"')}\"]`);
+    rows.push(`  click ${id} \"#\" \"${node.replace(/\"/g, '\\\"')}\"`);
+  }
+
+  for (const edge of graph.edges) {
+    const fromId = `n_${sha256(edge.from).slice(0, 8)}`;
+    const toId = `n_${sha256(edge.to).slice(0, 8)}`;
+    rows.push(`  ${fromId} --> ${toId}`);
+  }
+
+  return rows.join("\n");
 }
 
 function buildStyles(): string {
@@ -141,6 +167,7 @@ export function writeHtmlReport(input: HtmlInput): void {
     <thead><tr><th>Name</th><th>Kind</th><th>Exported</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
+  <!-- TODO(vNext): Add file-level LLM summary describing file purpose, key responsibilities, and major dependencies. -->
 </section>
 ${baseFoot()}`;
 
@@ -156,7 +183,7 @@ ${baseFoot()}`;
   <p><a href="${fileHref}">Open file page</a> • <a href="${escapeHtml(entity.sourceUrl)}" target="_blank" rel="noreferrer">Source</a></p>
   ${entity.signature ? `<pre>${escapeHtml(entity.signature)}</pre>` : ""}
   <h2>Explanation</h2>
-  <p class="status-${entity.explanation.status}">${escapeHtml(entity.explanation.status)}</p>
+  ${entity.explanation.status !== "ok" && entity.explanation.status !== "cached" ? `<p class="status-${entity.explanation.status}">${escapeHtml(entity.explanation.status)}</p>` : ""}
   <pre>${escapeHtml(entity.explanation.text)}</pre>
   ${entity.explanation.errorMessage ? `<p class="status-failed">${escapeHtml(entity.explanation.errorMessage)}</p>` : ""}
 </section>

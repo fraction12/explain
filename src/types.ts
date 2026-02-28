@@ -72,7 +72,7 @@ export interface Entity {
 export interface RouteInfo {
   id: string;
   filePath: string;
-  frameworkHint: "express" | "fastify" | "next" | "unknown";
+  frameworkHint: "express" | "fastify" | "next" | "astro" | "unknown";
   method?: string;
   path?: string;
   loc: {
