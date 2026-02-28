@@ -28,28 +28,32 @@ function buildSidebar(projectName: string, assetPrefix: string, domains: DomainG
   const foundationDomains = domains.filter((d) => d.kind === "foundation");
 
   const businessLinks = businessDomains
-    .map((domain) => `<a href="${assetPrefix}domains/${domain.slug}.html" class="sidebar-link sidebar-indent">${escapeHtml(domain.emoji)} ${escapeHtml(domain.name)}</a>`)
+    .map((domain) => `<a href="${assetPrefix}domains/${domain.slug}.html" class="sidebar-link sidebar-indent"><span class="sidebar-link-icon">${escapeHtml(domain.emoji)}</span><span class="sidebar-link-text">${escapeHtml(domain.name)}</span></a>`)
     .join("\n");
 
   const foundationLinks = foundationDomains
-    .map((domain) => `<a href="${assetPrefix}domains/${domain.slug}.html" class="sidebar-link sidebar-indent">${escapeHtml(domain.emoji)} ${escapeHtml(domain.name)}</a>`)
+    .map((domain) => `<a href="${assetPrefix}domains/${domain.slug}.html" class="sidebar-link sidebar-indent"><span class="sidebar-link-icon">${escapeHtml(domain.emoji)}</span><span class="sidebar-link-text">${escapeHtml(domain.name)}</span></a>`)
     .join("\n");
 
-  return `<aside class="left-sidebar">
-  <div class="sidebar-brand"><a href="${assetPrefix}index.html">${escapeHtml(projectName)}</a> <kbd class="search-hint">⌘K</kbd></div>
+  return `<aside class="sidebar" id="main-sidebar">
+  <div class="sidebar-brand">
+    <a href="${assetPrefix}index.html" class="sidebar-brand-link"><span class="sidebar-link-text">${escapeHtml(projectName)}</span></a>
+    <kbd class="search-hint sidebar-brand-search sidebar-link-text">&#8984;K</kbd>
+    <button class="sidebar-toggle" id="sidebar-toggle" title="Collapse sidebar" aria-label="Toggle sidebar">&#8249;</button>
+  </div>
   <nav class="sidebar-nav">
-    <a href="${assetPrefix}index.html" class="sidebar-link">Overview</a>
+    <a href="${assetPrefix}index.html" class="sidebar-link"><span class="sidebar-link-icon">&#8962;</span><span class="sidebar-link-text">Overview</span></a>
     <div class="sidebar-section">
-      <div class="sidebar-heading">Domains</div>
+      <div class="sidebar-heading"><span class="sidebar-heading-full">Domains</span><span class="sidebar-heading-abbr">D</span></div>
       ${businessLinks}
     </div>
-    ${foundationDomains.length ? `<div class="sidebar-section"><div class="sidebar-heading">Infrastructure</div>${foundationLinks}</div>` : ""}
+    ${foundationDomains.length ? `<div class="sidebar-section"><div class="sidebar-heading"><span class="sidebar-heading-full">Infrastructure</span><span class="sidebar-heading-abbr">I</span></div>${foundationLinks}</div>` : ""}
     <div class="sidebar-section">
-      <div class="sidebar-heading">Reference</div>
-      <a href="${assetPrefix}api.html" class="sidebar-link">API Reference</a>
-      <a href="${assetPrefix}graph.html" class="sidebar-link">Architecture Map</a>
-      <a href="${assetPrefix}reference.html" class="sidebar-link">Developer Reference</a>
-      <a href="${assetPrefix}changelog.html" class="sidebar-link">What Changed</a>
+      <div class="sidebar-heading"><span class="sidebar-heading-full">Reference</span><span class="sidebar-heading-abbr">R</span></div>
+      <a href="${assetPrefix}api.html" class="sidebar-link"><span class="sidebar-link-icon">#</span><span class="sidebar-link-text">API Reference</span></a>
+      <a href="${assetPrefix}graph.html" class="sidebar-link"><span class="sidebar-link-icon">&#9671;</span><span class="sidebar-link-text">Architecture Map</span></a>
+      <a href="${assetPrefix}reference.html" class="sidebar-link"><span class="sidebar-link-icon">&#9639;</span><span class="sidebar-link-text">Developer Reference</span></a>
+      <a href="${assetPrefix}changelog.html" class="sidebar-link"><span class="sidebar-link-icon">&#9677;</span><span class="sidebar-link-text">What Changed</span></a>
     </div>
   </nav>
 </aside>`;
@@ -91,10 +95,28 @@ function baseFoot(tocHtml?: string): string {
 </footer>
 <script>
 document.querySelectorAll(".sidebar-link").forEach(link => {
-  if (link.getAttribute("href") && window.location.pathname.endsWith(link.getAttribute("href").replace(/^\.\//, "").replace(/^\.\.\//g, ""))) {
+  if (link.getAttribute("href") && window.location.pathname.endsWith(link.getAttribute("href").replace(/^\.\//,  "").replace(/^\.\.\/\/g, ""))) {
     link.classList.add("active");
   }
 });
+
+// Sidebar collapse toggle
+(function() {
+  var sidebar = document.getElementById('main-sidebar');
+  var btn = document.getElementById('sidebar-toggle');
+  if (!sidebar || !btn) return;
+  var key = 'explain-sidebar-collapsed';
+  var collapsed = localStorage.getItem(key) === '1';
+  if (collapsed) { sidebar.classList.add('collapsed'); document.body.classList.add('sidebar-collapsed'); btn.title = 'Expand sidebar'; }
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    collapsed = !collapsed;
+    sidebar.classList.toggle('collapsed', collapsed);
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+    btn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+    localStorage.setItem(key, collapsed ? '1' : '0');
+  });
+})();
 </script>
 </body>
 </html>`;
@@ -144,17 +166,63 @@ p { margin: 0 0 16px 0; max-width: 720px; }
 .card { background: rgba(17, 24, 39, 0.85); border: 1px solid #243244; border-radius: 10px; padding: 14px; margin-bottom: 14px; }
 
 /* Sidebar */
-.sidebar { position: fixed; top: 0; left: 0; width: 260px; height: 100vh; overflow-y: auto; background: #111827; border-right: 1px solid #243244; padding: 20px 0; z-index: 100; }
-.sidebar-brand { padding: 0 20px 16px; border-bottom: 1px solid #243244; margin-bottom: 16px; }
-.sidebar-brand a { color: #e5e7eb; text-decoration: none; font-weight: 600; font-size: 15px; }
-.sidebar-nav { display: flex; flex-direction: column; }
-.sidebar-link { display: block; padding: 8px 20px; color: #9ca3af; text-decoration: none; font-size: 13px; transition: color 0.15s, background 0.15s, border-color 0.15s; border-right: 2px solid transparent; }
-.sidebar-link:hover { color: #7dd3fc; background: rgba(125, 211, 252, 0.05); }
-.sidebar-link.active { color: #7dd3fc; background: rgba(125, 211, 252, 0.08); border-right: 2px solid #7dd3fc; }
-.sidebar-indent { padding-left: 36px; font-size: 12px; }
-.sidebar-heading { padding: 16px 20px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; opacity: 0.6; }
-.content { margin-left: 260px; padding: 32px 40px; max-width: 820px; }
-.content-wide { margin-left: 260px; padding: 24px 32px; max-width: none; }
+.sidebar {
+  position: fixed; top: 0; left: 0; width: 220px; height: 100vh;
+  overflow-y: auto; overflow-x: hidden;
+  background: #111827; border-right: 1px solid #1e293b;
+  z-index: 100;
+  transition: width 220ms ease;
+  display: flex; flex-direction: column;
+}
+.sidebar.collapsed { width: 60px; }
+.sidebar-brand {
+  display: flex; align-items: center; gap: 6px;
+  padding: 14px 12px 12px;
+  border-bottom: 1px solid #1e293b; margin-bottom: 8px;
+  min-height: 48px; flex-shrink: 0; position: relative;
+}
+.sidebar-brand-link { color: #e5e7eb; text-decoration: none; font-weight: 600; font-size: 14px; white-space: nowrap; flex: 1; min-width: 0; }
+.sidebar-brand-search { flex-shrink: 0; }
+.sidebar-toggle {
+  background: transparent; border: none; color: #6b7280;
+  cursor: pointer; font-size: 18px; line-height: 1;
+  padding: 2px 4px; border-radius: 4px; flex-shrink: 0;
+  transition: color 0.15s, transform 220ms ease;
+}
+.sidebar-toggle:hover { color: #e5e7eb; background: rgba(255,255,255,0.06); }
+.sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); }
+.sidebar-nav { display: flex; flex-direction: column; flex: 1; padding-bottom: 16px; }
+.sidebar-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; color: #9ca3af; text-decoration: none;
+  font-size: 13px; white-space: nowrap; overflow: hidden;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  border-right: 2px solid transparent;
+}
+.sidebar-link:hover { color: #e5e7eb; background: rgba(255,255,255,0.05); }
+.sidebar-link.active { color: #e5e7eb; background: rgba(255,255,255,0.07); border-right-color: #94a3b8; }
+.sidebar-link-icon { flex-shrink: 0; width: 20px; text-align: center; font-size: 14px; opacity: 0.75; }
+.sidebar-link-text { overflow: hidden; text-overflow: ellipsis; transition: opacity 150ms ease, max-width 220ms ease; max-width: 160px; }
+.sidebar-indent { padding-left: 24px; font-size: 12px; }
+.sidebar-heading {
+  padding: 14px 12px 4px; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.1em; color: #6b7280;
+  white-space: nowrap; overflow: hidden;
+}
+.sidebar-heading-abbr { display: none; }
+.sidebar.collapsed .sidebar-link-text,
+.sidebar.collapsed .sidebar-brand-link,
+.sidebar.collapsed .sidebar-brand-search,
+.sidebar.collapsed .sidebar-heading-full { opacity: 0; max-width: 0; overflow: hidden; pointer-events: none; }
+.sidebar.collapsed .sidebar-heading-abbr { display: block; }
+.sidebar.collapsed .sidebar-link { padding-left: 0; justify-content: center; }
+.sidebar.collapsed .sidebar-indent { padding-left: 0; }
+.sidebar.collapsed .sidebar-link-icon { width: auto; }
+.content { margin-left: 220px; padding: 32px 40px; max-width: 820px; transition: margin-left 220ms ease; }
+.content-wide { margin-left: 220px; padding: 24px 32px; max-width: none; transition: margin-left 220ms ease; }
+body.sidebar-collapsed .content { margin-left: 60px; }
+body.sidebar-collapsed .content-wide { margin-left: 60px; }
+body.sidebar-collapsed .site-footer { margin-left: 60px; }
 
 /* Domain cards */
 .domain-card { background: rgba(17, 24, 39, 0.85); border: 1px solid #243244; border-radius: 12px; padding: 20px; transition: border-color 0.2s; }
@@ -212,7 +280,7 @@ p { margin: 0 0 16px 0; max-width: 720px; }
 .graph-sidebar ul { margin: 0; padding-left: 16px; }
 .graph-sidebar li { margin-bottom: 8px; color: #d1d5db; }
 .foundation-tag { display: inline-block; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; opacity: 0.5; }
-.site-footer { margin-left: 260px; padding: 24px 40px; border-top: 1px solid #1e293b; margin-top: 48px; }
+.site-footer { margin-left: 220px; padding: 24px 40px; border-top: 1px solid #1e293b; margin-top: 48px; transition: margin-left 220ms ease; }
 .footer-content { display: flex; align-items: center; gap: 8px; color: #4b5563; font-size: 11px; opacity: 0.6; }
 .footer-content strong { color: #7dd3fc; font-weight: 600; }
 .footer-sep { color: #374151; }
@@ -262,10 +330,12 @@ p { margin: 0 0 16px 0; max-width: 720px; }
 html.light { --bg: #f8fafc; --panel: #ffffff; --panel-2: #f1f5f9; --text: #1e293b; --muted: #64748b; --link: #7c7c7c; --accent: #7c7c7c; }
 html.light body { background: var(--bg); color: var(--text); }
 html.light .sidebar { background: #ffffff; border-right-color: #e2e8f0; }
-html.light .sidebar-brand a { color: #1e293b; }
+html.light .sidebar-brand-link { color: #1e293b; }
+html.light .sidebar-toggle { color: #94a3b8; }
+html.light .sidebar-toggle:hover { color: #1e293b; background: rgba(0,0,0,0.05); }
 html.light .sidebar-link { color: #64748b; }
-html.light .sidebar-link:hover { color: #7c7c7c; background: rgba(124, 124, 124, 0.06); }
-html.light .sidebar-link.active { color: #7c7c7c; background: rgba(124, 124, 124, 0.1); border-right-color: #7c7c7c; }
+html.light .sidebar-link:hover { color: #1e293b; background: rgba(0,0,0,0.04); }
+html.light .sidebar-link.active { color: #1e293b; background: rgba(0,0,0,0.06); border-right-color: #64748b; }
 html.light .sidebar-heading { color: #94a3b8; }
 html.light .card { background: #ffffff; border-color: #e2e8f0; }
 html.light .domain-card { background: #ffffff; border-color: #e2e8f0; }
@@ -297,9 +367,17 @@ html.light .foundation-tag { background: rgba(148, 163, 184, 0.15); color: #6474
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-  .sidebar { display: none; }
-  .content, .content-wide { margin-left: 0; padding: 16px; max-width: 100%; }
-  .site-footer { margin-left: 0; padding: 16px; }
+  .sidebar { width: 60px; }
+  .sidebar .sidebar-link-text,
+  .sidebar .sidebar-brand-link,
+  .sidebar .sidebar-brand-search,
+  .sidebar .sidebar-heading-full { opacity: 0; max-width: 0; overflow: hidden; pointer-events: none; }
+  .sidebar .sidebar-heading-abbr { display: block; }
+  .sidebar .sidebar-link { justify-content: center; padding-left: 0; }
+  .sidebar .sidebar-indent { padding-left: 0; }
+  .sidebar .sidebar-toggle { transform: rotate(180deg); }
+  .content, .content-wide { margin-left: 60px; padding: 16px; max-width: 100%; }
+  .site-footer { margin-left: 60px; padding: 16px; }
   .grid { grid-template-columns: 1fr; }
   .search-modal { width: 95vw; }
   .graph-legend { gap: 12px; }
