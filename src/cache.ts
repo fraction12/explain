@@ -76,6 +76,8 @@ export function writeCache(
   };
 
   fs.mkdirSync(path.dirname(cachePath), { recursive: true });
-  fs.writeFileSync(cachePath, JSON.stringify(snapshot, null, 2), "utf8");
+  const tmpPath = `${cachePath}.tmp`;
+  fs.writeFileSync(tmpPath, JSON.stringify(snapshot, null, 2), "utf8");
+  fs.renameSync(tmpPath, cachePath);
   return snapshot;
 }
