@@ -1102,11 +1102,11 @@ document.getElementById('search')?.addEventListener('input', filterRows);
     var fragment = document.createDocumentFragment();
     items.forEach(function(item, i) {
       var a = document.createElement('a');
-      a.className = 'search-result' + (i === 0 ? ' active' : '');
+      a.className = 'search-result-item' + (i === 0 ? ' active' : '');
       a.dataset.index = String(i);
       a.href = prefix + escHtml(item.path);
       var typeSpan = document.createElement('span');
-      typeSpan.className = 'search-type';
+      typeSpan.className = 'search-type-badge';
       typeSpan.textContent = item.type;
       a.appendChild(typeSpan);
       a.appendChild(document.createTextNode(item.name));
@@ -1115,7 +1115,7 @@ document.getElementById('search')?.addEventListener('input', filterRows);
     results.innerHTML = '';
     results.appendChild(fragment);
 
-    activeItems = Array.from(results.querySelectorAll('.search-result'));
+    activeItems = Array.from(results.querySelectorAll('.search-result-item'));
     activeIndex = 0;
   }
 
