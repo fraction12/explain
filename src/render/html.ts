@@ -1104,7 +1104,7 @@ document.getElementById('search')?.addEventListener('input', filterRows);
       var a = document.createElement('a');
       a.className = 'search-result-item' + (i === 0 ? ' active' : '');
       a.dataset.index = String(i);
-      a.href = prefix + escHtml(item.path);
+      a.href = prefix + item.path;
       var typeSpan = document.createElement('span');
       typeSpan.className = 'search-type-badge';
       typeSpan.textContent = item.type;
