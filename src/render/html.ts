@@ -741,7 +741,7 @@ body.sidebar-collapsed { padding-left: 60px; }
 
 /* Kind badges */
 .kind-badge { display: inline-block; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-left: var(--space-sm); opacity: 0.5; }
-.kind-function, .kind-class, .kind-interface, .kind-type, .kind-variable, .kind-enum, .kind-component { }
+.kind-function, .kind-class, .kind-interface, .kind-type, .kind-const, .kind-enum, .kind-component { }
 
 /* Inline entity on domain pages */
 .entity-block { margin: 0; padding-top: 0; border-top: none; }
