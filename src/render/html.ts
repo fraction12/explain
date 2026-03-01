@@ -1383,16 +1383,20 @@ ${baseFoot(tocHtml || undefined)}`;
     .join("\n");
 
   const apiRows = input.files
-    .map((file) => {
+    .flatMap((file) => {
       const pathValue = inferApiPath(file.path);
-      if (!pathValue) return null;
-      const route = input.routes.find((r) => r.filePath === file.path);
-      const method = (route?.method ?? "GET").toUpperCase();
-      const className = `method-${method.toLowerCase()}`;
+      if (!pathValue) return [];
+      const routes = input.routes.filter((r) => r.filePath === file.path);
       const desc = input.entities.find((e) => e.filePath === file.path)?.explanation.text ?? "Route handler";
-      return { method, className, path: pathValue, file: file.path, desc };
+      if (routes.length === 0) {
+        const method = "GET";
+        return [{ method, className: `method-${method.toLowerCase()}`, path: pathValue, file: file.path, desc }];
+      }
+      return routes.map((route) => {
+        const method = (route.method ?? "GET").toUpperCase();
+        return { method, className: `method-${method.toLowerCase()}`, path: pathValue, file: file.path, desc };
+      });
     })
-    .filter((v): v is { method: string; className: string; path: string; file: string; desc: string } => Boolean(v))
     .sort((a, b) => a.path.localeCompare(b.path))
     .map(
       (row) => `<tr><td><span class="method-badge ${row.className}">${escapeHtml(row.method)}</span></td><td>${escapeHtml(row.path)}</td><td class="api-description">${escapeHtml(row.desc)}</td><td>${escapeHtml(row.file)}</td></tr>`,
