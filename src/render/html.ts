@@ -308,6 +308,7 @@ initRightToc();
   var backdrop = document.getElementById('sidebar-backdrop');
   var sidebar = document.getElementById('main-sidebar');
   if (!menuBtn || !backdrop || !sidebar) return;
+  if (!menuBtn.getAttribute('aria-label')) menuBtn.setAttribute('aria-label', 'Open navigation');
 
   function openSidebar() {
     document.body.classList.add('sidebar-overlay-open');
@@ -1058,26 +1059,43 @@ document.getElementById('search')?.addEventListener('input', filterRows);
 (function() {
   var overlay = document.createElement('div');
   overlay.className = 'search-modal-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-hidden', 'true');
   overlay.style.display = 'none';
-  overlay.innerHTML = '<div class="search-modal"><input class="search-input" type="search" placeholder="Search entities, files, domains..." /><div class="search-results"></div></div>';
+  overlay.innerHTML = '<div class="search-modal"><input class="search-input" type="search" aria-label="Search entities, files, and domains" placeholder="Search entities, files, domains..." /><div class="search-results"></div></div>';
   document.body.appendChild(overlay);
 
   var input = overlay.querySelector('.search-input');
   var results = overlay.querySelector('.search-results');
   var activeIndex = -1;
   var activeItems = [];
+  var returnFocusEl = null;
+
+  function getFocusableInModal() {
+    return Array.from(
+      overlay.querySelectorAll('a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+    ).filter(function(el) {
+      return el instanceof HTMLElement && el.offsetParent !== null;
+    });
+  }
 
   function closeModal() {
     overlay.style.display = 'none';
+    overlay.setAttribute('aria-hidden', 'true');
     input.value = '';
     results.innerHTML = '';
     activeItems = [];
     activeIndex = -1;
+    if (returnFocusEl && returnFocusEl instanceof HTMLElement) returnFocusEl.focus();
+    returnFocusEl = null;
   }
 
   function openModal() {
+    returnFocusEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     overlay.style.display = 'flex';
-    setTimeout(function() { input.focus(); }, 0);
+    overlay.setAttribute('aria-hidden', 'false');
+    input.focus();
     renderResults('');
   }
 
@@ -1148,6 +1166,31 @@ document.getElementById('search')?.addEventListener('input', filterRows);
 
   overlay.addEventListener('click', function(e) {
     if (e.target === overlay) closeModal();
+  });
+
+  overlay.addEventListener('keydown', function(e) {
+    if (e.key !== 'Tab' || overlay.style.display !== 'flex') return;
+    var focusable = getFocusableInModal();
+    if (!focusable.length) {
+      e.preventDefault();
+      return;
+    }
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    var active = document.activeElement;
+
+    if (e.shiftKey) {
+      if (active === first || !overlay.contains(active)) {
+        e.preventDefault();
+        last.focus();
+      }
+      return;
+    }
+
+    if (active === last || !overlay.contains(active)) {
+      e.preventDefault();
+      first.focus();
+    }
   });
 
   document.addEventListener('keydown', function(e) {
