@@ -141,7 +141,7 @@ function baseFoot(tocHtml?: string): string {
 </footer>
 <script>
 function normalizePathname(pathname) {
-  return pathname.replace(/\/+$/, "") || "/";
+  return pathname.replace(/\/index\.html$/, "/").replace(/\/+$/, "") || "/";
 }
 
 function syncHighlightTheme() {
