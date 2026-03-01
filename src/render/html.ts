@@ -1196,7 +1196,7 @@ document.getElementById('search')?.addEventListener('input', filterRows);
 function inferApiPath(filePath: string): string | null {
   if (!filePath.startsWith("src/pages/")) return null;
   let route = filePath.slice("src/pages/".length);
-  route = route.replace(/\.ts$/, "");
+  route = route.replace(/(\.(ts|tsx|js|jsx))$/, "");
   route = route.replace(/\[(.+?)\]/g, ":$1");
   route = route.replace(/\/index$/g, "");
   route = route.replace(/^index$/g, "");
