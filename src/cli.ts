@@ -266,7 +266,7 @@ async function main(): Promise<void> {
   }));
 
   const summaryHashKey = createExplanationCacheKey(
-    JSON.stringify(summaryContext.map((c) => c.filePath).sort()),
+    JSON.stringify(summaryContext.map((c) => ({ p: c.filePath, h: fileHashes[c.filePath] ?? "" })).sort((a, b) => a.p.localeCompare(b.p))),
     config.llm.model,
     `${PROMPT_VERSION}-summary`,
   );
@@ -287,7 +287,7 @@ async function main(): Promise<void> {
   }
 
   const domainHashKey = createExplanationCacheKey(
-    JSON.stringify(domainContext.map((c) => c.filePath).sort()),
+    JSON.stringify(domainContext.map((c) => ({ p: c.filePath, h: fileHashes[c.filePath] ?? "" })).sort((a, b) => a.p.localeCompare(b.p))),
     config.llm.model,
     `${PROMPT_VERSION}-domains`,
   );
